@@ -1,21 +1,21 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from typing import Tuple
+from typing import Tuple, List
 from typing_extensions import Self
+import tkinter as tk
 
 SEED = 0
 
 SPLIT_CHANCE = 0.25
 END_CHANCE = 0.3
 
-ROOT_SPLITS = 10
+ROOT_SPLITS = 25
 ROOT_ANGLE = 360
 
 MAX_SPLIT = 3
 MIN_SPLIT = 1
 
-MIN_DIST = 1
-MAX_DIST = 10
+MIN_DIST = 10
+MAX_DIST = 100
 
 ANGLE_RANGE = 45
 
@@ -29,6 +29,67 @@ class Graph:
 
     def add_child(self, child: Self):
         self.children.append(child)
+
+    def find_bbox(self, rect: List[float] = [0, 0, 0, 0]) -> List[float]:
+        for child in self.children:
+            rect = child.find_bbox(rect)
+
+            if child.x < rect[0]:
+                rect[0] = child.x
+            if child.x > rect[2]:
+                rect[2] = child.x
+            if child.y < rect[1]:
+                rect[1] = child.y
+            if child.y > rect[3]:
+                rect[3] = child.y
+        return rect
+
+    def display(self):
+        disp = tk.Tk()
+        disp.title("Path")
+
+        bbox = self.find_bbox()
+        canvas_width = (bbox[2] - bbox[0]) * 1.25
+        canvas_height = (bbox[3] - bbox[1]) * 1.25
+
+        canvas = tk.Canvas(disp, width=canvas_width, height=canvas_height)
+        canvas.pack()
+
+        # Draw root
+        center = (
+            canvas_width / 2,
+            canvas_height / 2,
+        )
+        self.__display_recursive(canvas, center, center)
+        self.__draw_node(canvas, center)
+
+        disp.mainloop()
+
+    def __color_str(self) -> str:
+        return "#{0:02x}{1:02x}{2:02x}".format(
+            int(self.color[0] * 255), int(self.color[1] * 255), int(self.color[2] * 255)
+        )
+
+    def __draw_node(self, canvas: tk.Canvas, loc: Tuple[float, float]):
+        canvas.create_oval(
+            loc[0] - 5,
+            loc[1] - 5,
+            loc[0] + 5,
+            loc[1] + 5,
+            fill=self.__color_str(),
+        )
+
+    def __display_recursive(
+        self,
+        canvas: tk.Canvas,
+        prev_loc: Tuple[float, float],
+        center: Tuple[float, float],
+    ):
+        loc = (center[0] + self.x, center[1] + self.y)
+        canvas.create_line(prev_loc, loc, fill=self.__color_str())
+        for child in self.children:
+            child.__display_recursive(canvas, loc, center)
+        self.__draw_node(canvas, loc)
 
 
 def create_branch(parent: Graph, dir: float, depth: int = 0):
@@ -93,3 +154,4 @@ def create_graph() -> Graph:
 
 if __name__ == "__main__":
     graph = create_graph()
+    graph.display()
