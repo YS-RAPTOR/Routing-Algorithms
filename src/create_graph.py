@@ -35,10 +35,15 @@ class Options:
     window_name: str = "Graph"
     display_width: int = 1000
     display_height: int = 1000
+    fps: int = 60
 
     # Graph Rendering options
     node_radius: int = 4
     line_width: int = 2
+
+    # NOTE: User input options
+    move_speed: int = 10
+    scroll_speed: float = 1.1
 
 
 class Graph:
@@ -154,9 +159,9 @@ class Graph:
 
 
 class DrawGraph:
-    def __init__(self, graph: Graph, draw_pos: Tuple[int, int], zoom: float | None):
+    def __init__(self, graph: Graph, offset: Tuple[float, float], zoom: float | None):
         self.graph = graph
-        self.draw_pos = draw_pos
+        self.offset = offset
         self.zoom = zoom
         self.surface = pygame.Surface(
             (
@@ -180,7 +185,7 @@ class DrawGraph:
         self.surface.fill((255, 255, 255))
         graph.draw(
             self.surface,
-            (opts.display_width // 2, opts.display_height // 2),
+            (int(self.offset[0]), int(self.offset[1])),
             zoom,
             opts,
         )
@@ -191,16 +196,25 @@ if __name__ == "__main__":
     graph = Graph(0, 0, (0, 0, 0))
     graph.create(opts)
 
-    draw_graph = DrawGraph(graph, (0, 0), None)
+    draw_graph = DrawGraph(
+        graph, (opts.display_width // 2, opts.display_height // 2), None
+    )
     draw_graph.update(opts)
 
     pygame.init()
     screen = pygame.display.set_mode((opts.display_width, opts.display_height))
     pygame.display.set_caption(opts.window_name)
+    pygame.key.set_repeat(1, 1)
 
     clock = pygame.time.Clock()
 
     running = True
+    delta = 1 / opts.fps
+
+    initial_mouse_pos = np.zeros(2)
+    initial_offset = (0, 0)
+    is_dragging = False
+
     while running:
         # Handle events
         for event in pygame.event.get():
@@ -210,20 +224,67 @@ if __name__ == "__main__":
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE or event.key == pygame.K_q:
                     running = False
+                    break
 
             if event.type == pygame.VIDEORESIZE:
                 opts.display_width = event.w
                 opts.display_height = event.h
 
-                draw_graph.update(opts)
+            if event.type == pygame.MOUSEWHEEL:
+                if draw_graph.zoom is None:
+                    draw_graph.zoom = draw_graph.zoom_to_fit(opts)
 
+                old_zoom = draw_graph.zoom
+
+                if event.y > 0:
+                    draw_graph.zoom *= opts.scroll_speed
+                elif event.y < 0:
+                    draw_graph.zoom /= opts.scroll_speed
+
+                mx, my = pygame.mouse.get_pos()
+                draw_graph.offset = (
+                    mx - (mx - draw_graph.offset[0]) * (draw_graph.zoom / old_zoom),  # type: ignore
+                    my - (my - draw_graph.offset[1]) * (draw_graph.zoom / old_zoom),  # type: ignore
+                )
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:
+                    draw_graph.zoom = None
+                    draw_graph.offset = (
+                        opts.display_width // 2,
+                        opts.display_height // 2,
+                    )
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    if not is_dragging:
+                        initial_mouse_pos = np.array(pygame.mouse.get_pos())
+                        initial_mouse_pos -= np.array(
+                            (opts.display_width, opts.display_height)
+                        )
+                        initial_mouse_pos = (initial_mouse_pos - 0.5) * 2
+                        initial_offset = draw_graph.offset
+                        is_dragging = True
+
+            if event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 1:
+                    is_dragging = False
+
+        if is_dragging:
+            mouse_pos = np.array(pygame.mouse.get_pos())
+            mouse_pos -= np.array((opts.display_width, opts.display_height))
+            mouse_pos = (mouse_pos - 0.5) * 2
+
+            draw_graph.offset = (
+                initial_offset[0] + mouse_pos[0] - initial_mouse_pos[0],
+                initial_offset[1] + mouse_pos[1] - initial_mouse_pos[1],
+            )
+
+        draw_graph.update(opts)
         # Draw
         screen.fill((255, 255, 255))
-        screen.blit(
-            draw_graph.surface,
-            draw_graph.draw_pos,
-        )
+        screen.blit(draw_graph.surface, (0, 0))
         pygame.display.flip()
-        clock.tick(60)
+        clock.tick(opts.fps)
 
     pygame.quit()
