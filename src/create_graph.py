@@ -9,7 +9,7 @@ import pygame
 class Options:
     # NOTE: Generation options
 
-    seed: int = 0
+    seed: int = 1
 
     # Root options
     root_splits: int = 25
@@ -47,9 +47,10 @@ class Options:
 
 
 class Graph:
-    def __init__(self, x: float, y: float, color: Tuple[int, int, int]):
+    def __init__(self, x: float, y: float, color: Tuple[int, int, int], id: int = 0):
         self.x = x
         self.y = y
+        self.id = id
         self.color = color
         self.children = []
         self.bbox = None
