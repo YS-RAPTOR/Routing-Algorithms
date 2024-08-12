@@ -1,4 +1,5 @@
 from typing import Tuple, List
+from typing_extensions import Self
 from dataclasses import dataclass
 import numpy as np
 
@@ -24,11 +25,19 @@ class GraphOptions:
 
 
 class Graph:
-    def __init__(self, x: float, y: float, color: Tuple[int, int, int], id: int):
+    def __init__(
+        self,
+        parent: Self | None,
+        x: float,
+        y: float,
+        color: Tuple[int, int, int],
+        id: int,
+    ):
         self.x = x
         self.y = y
         self.id = id
         self.color = color
+        self.parent = parent
         self.children = []
         self.bbox = None
 
@@ -49,12 +58,20 @@ class Graph:
             )
 
             no_of_nodes += 1
-            branch = Graph(x, y, color, no_of_nodes)
+            branch = Graph(self, x, y, color, no_of_nodes)
             self.children.append(branch)
             no_of_nodes = branch.__create_branch(angle, opts, 1, no_of_nodes)
 
         self.bbox = self.__find_bbox()
         return no_of_nodes + 1
+
+    def find_immediate_from_id(self, id: int) -> Self | None:
+        if self.parent is not None and self.parent.id == id:
+            return self.parent
+        for child in self.children:
+            if child.id == id:
+                return child
+        return None
 
     def __create_branch(
         self, dir: float, opts: GraphOptions, depth: int, no_of_nodes: int
@@ -84,7 +101,7 @@ class Graph:
                 )
 
                 no_of_nodes += 1
-                branch = Graph(x, y, color, no_of_nodes)
+                branch = Graph(self, x, y, color, no_of_nodes)
                 self.children.append(branch)
                 no_of_nodes = branch.__create_branch(
                     angle, opts, depth + 1, no_of_nodes
@@ -98,7 +115,7 @@ class Graph:
             y = self.y + np.sin(np.radians(angle)) * distance
             color = self.color
             no_of_nodes += 1
-            branch = Graph(x, y, color, no_of_nodes)
+            branch = Graph(self, x, y, color, no_of_nodes)
             self.children.append(branch)
             return branch.__create_branch(angle, opts, depth + 1, no_of_nodes)
 

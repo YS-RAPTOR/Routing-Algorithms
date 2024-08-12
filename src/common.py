@@ -2,22 +2,33 @@ from dataclasses import dataclass
 from typing import List
 
 Location = int
-
-
-class Route:
-    def __init__(self, parcels: List[int], distance: float):
-        self.parcels = parcels
-        self.distance = distance
+Id = int
 
 
 @dataclass
 class DeliveryAgent:
-    id: int
-    capacity: int
+    id: Id
+    max_capacity: int
     max_dist: float
+
+    def __hash__(self):
+        return hash(self.id)
 
 
 @dataclass
 class Parcel:
-    id: int
+    id: Id
     location: Location
+
+
+@dataclass
+class Route:
+    locations: List[Location]
+    drops: List[Id]
+
+    def get_parcels(self) -> List[Parcel]:
+        parcels = []
+        for loc, drop in zip(self.locations, self.drops):
+            if drop != -1:
+                parcels.append(Parcel(drop, loc))
+        return parcels

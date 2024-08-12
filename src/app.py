@@ -84,7 +84,7 @@ class App:
         self.scroll_speed = scroll_speed
 
         # NOTE: Creates Graph
-        graph = Graph(0, 0, (0, 0, 0), 0)
+        graph = Graph(None, 0, 0, (0, 0, 0), 0)
         print(f"No of Nodes Created: {graph.create(GraphOptions())}")
 
         # NOTE: App Initialization

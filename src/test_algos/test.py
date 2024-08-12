@@ -8,4 +8,6 @@ def model(
     delivery_parcels: List[Parcel],
     delivery_agents: List[DeliveryAgent],
 ) -> Mapping[DeliveryAgent, Route]:
-    return {}
+    return {
+        DeliveryAgent(0, 2, 3): Route([1, 2, 3], [-1, 0, 1]),
+    }
