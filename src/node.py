@@ -39,7 +39,7 @@ class Node:
         self.y = y
         self.id = id
         self.color = color
-        self.neighbours = set()
+        self.neighbours = []
         self.bbox = None
 
     def create(self, opts: NodeOptions) -> int:
@@ -67,8 +67,7 @@ class Node:
             no_of_nodes += 1
             node = Node(x, y, color, no_of_nodes)
             # Add the new node to the neighbours of the root node and vice versa
-            node.neighbours.add(self)
-            self.neighbours.add(node)
+            node.__add_neighbours(self)
 
             # Create a branch
             no_of_nodes = node.__create_branch(dir, opts, 0, no_of_nodes, self)
@@ -77,6 +76,13 @@ class Node:
         self.bbox = self.__find_bbox(set())
         # Return the number of nodes created. +1 is added to include the root node
         return no_of_nodes + 1
+
+    def __add_neighbours(self, node: Self):
+        if node not in self.neighbours:
+            self.neighbours.append(node)
+
+        if self not in node.neighbours:
+            node.neighbours.append(self)
 
     def __create_branch(
         self,
@@ -115,13 +121,11 @@ class Node:
                     new = Node(x, y, current.color, no_of_nodes)
 
                     # Add the new node to the neighbours of the current node
-                    new.neighbours.add(current)
-                    current.neighbours.add(new)
+                    new.__add_neighbours(current)
                     current = new
 
                 # Since the current node is now within the maximum distance from the root node, connect it to the root node
-                current.neighbours.add(root)
-                root.neighbours.add(current)
+                root.__add_neighbours(current)  # type: ignore
                 return no_of_nodes
 
         # Check if the current node should split
@@ -151,8 +155,7 @@ class Node:
                 # Create a new node
                 no_of_nodes += 1
                 node = Node(x, y, color, no_of_nodes)
-                node.neighbours.add(self)
-                self.neighbours.add(node)
+                node.__add_neighbours(self)
 
                 # Create a branch
                 no_of_nodes = node.__create_branch(
@@ -172,8 +175,7 @@ class Node:
             # Create a new node
             no_of_nodes += 1
             node = Node(x, y, self.color, no_of_nodes)
-            node.neighbours.add(self)
-            self.neighbours.add(node)
+            node.__add_neighbours(self)
 
             return node.__create_branch(dir, opts, depth + 1, no_of_nodes, root)
 
