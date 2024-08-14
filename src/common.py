@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List
 
-# Type aliases for location. Location is the same as the id of a graph node.
+# Type aliases for location. Location is the same as the id of a root node.
 Location = int
 
 
