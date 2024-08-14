@@ -4,7 +4,7 @@ import importlib
 import pkgutil
 
 from common import DeliveryAgent, Parcel, Route
-from graph import Graph, GraphOptions
+from node import Node, NodeOptions
 import test_algos
 
 
@@ -43,7 +43,7 @@ def create_agents(
 
 
 def display_results(
-    graph: Graph, routes: Mapping[DeliveryAgent, Route], parcels: List[Parcel]
+    node: Node, routes: Mapping[DeliveryAgent, Route], parcels: List[Parcel]
 ):
     # Keep track of total distance and parcels
     total_distance = 0
@@ -71,7 +71,7 @@ def display_results(
         if route.locations[-1] != 0:
             raise Exception(f"Route for agent {agent.id} does not end at warehouse")
 
-        current_node: Graph = graph
+        current_node: Node = node
         for loc, drop in zip(route.locations[1::], route.drops[1::]):
             # Checks if the route is valid
             travelling_to_node = current_node.find_immediate_from_id(loc)
@@ -108,8 +108,8 @@ def display_results(
 
 if __name__ == "__main__":
     # Create graph
-    graph = Graph(None, 0, 0, (0, 0, 0), 0)
-    no_of_nodes = graph.create(GraphOptions())
+    root = Node(0, 0, (0, 0, 0), 0)
+    no_of_nodes = root.create(NodeOptions())
 
     # Create parcels and agents
     np.random.seed(0)
@@ -126,9 +126,9 @@ if __name__ == "__main__":
             continue
 
         # Run the model function
-        routes: Mapping[DeliveryAgent, Route] = submodule.model(graph, parcels, agents)
+        routes: Mapping[DeliveryAgent, Route] = submodule.model(root, parcels, agents)
 
         # Display results
         print(f"Results for {module_info.name}:")
-        display_results(graph, routes, parcels)
+        display_results(root, routes, parcels)
         print()
