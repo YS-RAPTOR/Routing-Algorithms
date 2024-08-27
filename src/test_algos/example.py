@@ -1,5 +1,5 @@
 from typing import List, Mapping
-from common import DeliveryAgent, Parcel, Route
+from common import DeliveryAgentInfo, Parcel, Route
 from node import Node
 
 
@@ -8,11 +8,10 @@ from node import Node
 def model(
     root_node: Node,
     delivery_parcels: List[Parcel],
-    delivery_agents: List[DeliveryAgent],
-) -> Mapping[DeliveryAgent, Route]:
+    delivery_agents: List[DeliveryAgentInfo],
+) -> Mapping[DeliveryAgentInfo, Route]:
     return {
-        DeliveryAgent(0, 2, 3): Route(
-            [0, 1, 2, 3, 2, 1, 0],
-            [-1, 0, 1, -1, -1, -1, -1],
+        DeliveryAgentInfo(0, 2, 3): Route(
+            [None, delivery_parcels[0], delivery_parcels[1], None]
         ),
     }

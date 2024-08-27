@@ -213,3 +213,6 @@ class Node:
             if neighbour.id == id:
                 return neighbour
         return None
+
+    def simple_distance_to(self, end: Self) -> float:
+        return np.sqrt((self.x - end.x) ** 2 + (self.y - end.y) ** 2)
