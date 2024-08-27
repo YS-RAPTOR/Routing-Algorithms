@@ -1,4 +1,4 @@
-from typing import Dict, List, Mapping
+from typing import Dict, List
 from typing_extensions import Self
 from common import DeliveryAgentInfo, Parcel, Route, Id
 from node import Node

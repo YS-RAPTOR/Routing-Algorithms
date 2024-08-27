@@ -1,4 +1,4 @@
-from typing import List, Mapping
+from typing import List, Dict
 import numpy as np
 import importlib
 import pkgutil
@@ -53,7 +53,7 @@ def print_info(agent: Agent):
 
 
 def display_results(
-    node: Node, routes: Mapping[DeliveryAgentInfo, Route], parcels: List[Parcel]
+    node: Node, routes: Dict[DeliveryAgentInfo, Route], parcels: List[Parcel]
 ):
     print(" Individual Agent Results:")
     print("-" * 79)
@@ -93,7 +93,6 @@ if __name__ == "__main__":
     print(f" Parcels: {len(parcels)}")
     print(f" Agents: {len(agents)}")
 
-
     # Run all test algorithms in the folder test_algos
     for module_info in pkgutil.iter_modules(test_algos.__path__):  # type: ignore
         submodule = importlib.import_module(f"test_algos.{module_info.name}")
@@ -104,9 +103,7 @@ if __name__ == "__main__":
             continue
 
         # Run the model function
-        routes: Mapping[DeliveryAgentInfo, Route] = submodule.model(
-            root, parcels, agents
-        )
+        routes: Dict[DeliveryAgentInfo, Route] = submodule.model(root, parcels, agents)
 
         # Display results
         print("=" * 79)
