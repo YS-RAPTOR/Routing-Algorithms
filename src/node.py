@@ -1,7 +1,9 @@
-from typing import Set, Tuple, List
+from typing import Dict, Set, Tuple, List
 from typing_extensions import Self
 from dataclasses import dataclass
 import numpy as np
+
+from common import Id
 
 
 @dataclass
@@ -35,11 +37,11 @@ class Node:
         color: Tuple[int, int, int],
         id: int,
     ):
-        self.x = x
-        self.y = y
+        self.loc: np.ndarray = np.array([x, y])
         self.id = id
         self.color = color
-        self.neighbours = []
+        self.neighbours: List[Node] = []
+        self.neighbour_map: Dict[Id, Node] = {}
         self.bbox = None
 
     def create(self, opts: NodeOptions) -> int:
@@ -53,8 +55,8 @@ class Node:
             dir = i * 360 / opts.root_splits
 
             # Calculate the new position
-            x = self.x + distance * np.cos(np.radians(dir))
-            y = self.y + distance * np.sin(np.radians(dir))
+            x = self.loc[0] + distance * np.cos(np.radians(dir))
+            y = self.loc[1] + distance * np.sin(np.radians(dir))
 
             # Generate a random color
             color = (
@@ -80,9 +82,11 @@ class Node:
     def __add_neighbours(self, node: Self):
         if node not in self.neighbours:
             self.neighbours.append(node)
+            self.neighbour_map[node.id] = node
 
         if self not in node.neighbours:
             node.neighbours.append(self)
+            node.neighbour_map[self.id] = self
 
     def __create_branch(
         self,
@@ -98,23 +102,19 @@ class Node:
                 current = self
 
                 # Check if the distance between the current node and the root node is greater than the maximum distance
-                while (
-                    np.sqrt((current.x - root.x) ** 2 + (current.y - root.y) ** 2)
-                    > opts.max_dist
-                ):
+                while np.linalg.norm(current.loc - root.loc) > opts.max_dist:
                     distance = np.random.randint(opts.min_dist, opts.max_dist)
                     # Calculate the direction to the root node
-                    dir = np.rad2deg(
-                        np.arctan2((root.y - current.y), (root.x - current.x))
-                    )
+                    subs = root.loc - current.loc
+                    dir = np.rad2deg(np.arctan2(subs[1], subs[0]))
                     # Add some randomness to the direction
                     dir += np.random.randint(
                         -opts.return_angle_range, opts.return_angle_range
                     )
 
                     # Calculate the new position
-                    x = current.x + distance * np.cos(np.radians(dir))
-                    y = current.y + distance * np.sin(np.radians(dir))
+                    x = current.loc[0] + distance * np.cos(np.radians(dir))
+                    y = current.loc[1] + distance * np.sin(np.radians(dir))
 
                     # Create a new node
                     no_of_nodes += 1
@@ -138,8 +138,8 @@ class Node:
                 dir += np.random.randint(-opts.angle_range, opts.angle_range)
 
                 # Calculate the new position
-                x = self.x + distance * np.cos(np.radians(dir))
-                y = self.y + distance * np.sin(np.radians(dir))
+                x = self.loc[0] + distance * np.cos(np.radians(dir))
+                y = self.loc[1] + distance * np.sin(np.radians(dir))
 
                 # Generate a random color. One of the branches will have the same color as the current node
                 color = (
@@ -169,8 +169,8 @@ class Node:
             dir += np.random.randint(-opts.angle_range, opts.angle_range)
 
             # Calculate the new position
-            x = self.x + distance * np.cos(np.radians(dir))
-            y = self.y + distance * np.sin(np.radians(dir))
+            x = self.loc[0] + distance * np.cos(np.radians(dir))
+            y = self.loc[1] + distance * np.sin(np.radians(dir))
 
             # Create a new node
             no_of_nodes += 1
@@ -187,16 +187,17 @@ class Node:
         for neighbour in self.neighbours:
             if neighbour in visited:
                 continue
-            rect = neighbour.__find_bbox(visited, rect)
+            rect = neighbour.__find_bbox(visited, rect)  # type: ignore
 
-            if neighbour.x < rect[0]:
-                rect[0] = neighbour.x
-            if neighbour.x > rect[2]:
-                rect[2] = neighbour.x
-            if neighbour.y < rect[1]:
-                rect[1] = neighbour.y
-            if neighbour.y > rect[3]:
-                rect[3] = neighbour.y
+            if neighbour.loc[0] < rect[0]:
+                rect[0] = neighbour.loc[0]
+            if neighbour.loc[0] > rect[2]:
+                rect[2] = neighbour.loc[0]
+
+            if neighbour.loc[1] < rect[1]:
+                rect[1] = neighbour.loc[1]
+            if neighbour.loc[1] > rect[3]:
+                rect[3] = neighbour.loc[1]
         return rect
 
     def get_all_nodes(self, visited: Set[Self]) -> Set[Self]:
@@ -204,15 +205,9 @@ class Node:
         for neighbour in self.neighbours:
             if neighbour in visited:
                 continue
-            neighbour.get_all_nodes(visited)
+            neighbour.get_all_nodes(visited)  # type: ignore
         return visited
 
     def find_immediate_from_id(self, id: int) -> Self | None:
         # Find the immediate child or parent node that has the given id
-        for neighbour in self.neighbours:
-            if neighbour.id == id:
-                return neighbour
-        return None
-
-    def simple_distance_to(self, end: Self) -> float:
-        return np.sqrt((self.x - end.x) ** 2 + (self.y - end.y) ** 2)
+        return self.neighbour_map.get(id)  # type: ignore

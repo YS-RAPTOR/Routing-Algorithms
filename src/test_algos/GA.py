@@ -332,7 +332,7 @@ def model(
     root_node: Node,
     delivery_parcels: List[Parcel],
     delivery_agents: List[DeliveryAgentInfo],
-    debug=False,
+    debug: bool = False,
 ) -> Dict[DeliveryAgentInfo, Route]:
     # Create a population of DNA and gets the solution
     return Population(

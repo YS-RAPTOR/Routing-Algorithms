@@ -3,6 +3,8 @@ from typing import Dict, List, Tuple
 from common import DeliveryAgentInfo, Id, Parcel
 from node import Node
 
+import numpy as np
+
 SPEED = 1
 
 
@@ -38,15 +40,6 @@ def get_route(start: Node, end: Id) -> List[Id]:
                 queue.append(neighbor)
 
     raise ValueError("No path found")
-
-
-# Returns the distance between two nodes given the start node and the end node's Id
-def get_distance(start: Node, end: Id) -> Tuple[float, Node]:
-    end_node = start.find_immediate_from_id(end)
-    if end_node is None:
-        raise ValueError("End node not found")
-
-    return start.simple_distance_to(end_node), end_node
 
 
 class Agent:
@@ -179,7 +172,8 @@ class Agent:
             return False
 
         # Calculate the distance between the current location and the current target
-        distance, target = get_distance(self.current_location, self.current_target)
+        target: Node = self.current_location.find_immediate_from_id(self.current_target)  # type: ignore
+        distance = np.linalg.norm(self.current_location.loc - target.loc)  # type: ignore
 
         # If the agent has reached the current target
         if self.progress >= distance:
