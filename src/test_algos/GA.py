@@ -7,13 +7,19 @@ import numpy as np
 
 from simulate import Simulator
 
-MUTATION_RATE = 0.1
-CROSSOVER_RATE = 0.5
 
-POPULATION_SIZE = 100
-NUM_GENERATIONS = 100
-
+NUM_GENERATIONS = 400
+POPULATION_SIZE = 200
 POPULATION_CUTOFF = 10
+
+WAREHOUSE_CHANCE = 0.3
+
+CROSSOVER_RATE = 0.25
+MUTATION_RATE = 0.025
+
+MUTATION_ADD = 0.45
+MUTATION_CHANGE = 0.35
+MUTATION_REMOVE = 0.2
 
 TEXT_CENTER = 25
 
@@ -49,6 +55,8 @@ class AgentDNA:
     def get_random_genome(self):
         # -1 is used to represent the warehouse location.
         # highest_parcel_id is the biggest parcel id + 1
+        if np.random.rand() < WAREHOUSE_CHANCE:
+            return -1
         return np.random.randint(-1, self.highest_parcel_id)
 
     def crossover(self, other: Self, crossover_rate):
@@ -66,7 +74,14 @@ class AgentDNA:
         for i in range(len(self.genes)):
             # Mutate the genes of the agent with a certain probability
             if np.random.rand() < mutation_rate:
-                choice = np.random.randint(0, 3)
+                choice = np.random.choice(
+                    [0, 1, 2],
+                    p=[
+                        MUTATION_CHANGE,
+                        MUTATION_REMOVE,
+                        MUTATION_ADD,
+                    ],
+                )
                 if choice == 0:
                     # Randomly change the value of the gene
                     self.genes[i] = self.get_random_genome()
@@ -75,7 +90,8 @@ class AgentDNA:
                     removals += 1
                 if choice == 2:
                     # Add a gene
-                    self.genes.append(self.get_random_genome())
+                    choice = np.random.randint(0, len(self.genes))
+                    self.genes.insert(choice, self.get_random_genome())
 
         # Remove the genes that were marked for removal
         for _ in range(removals):
@@ -123,7 +139,7 @@ class DNA:
 
         # Simulate the allocation and return the results
         return Simulator(
-            allocation, self.delivery_parcels.copy(), self.starting_location
+            allocation, self.delivery_parcels, self.starting_location
         ).simulate()
 
     def copy(self):

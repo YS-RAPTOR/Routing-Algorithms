@@ -213,10 +213,11 @@ class Simulator:
     def __init__(
         self,
         agent_allocation: Dict[DeliveryAgentInfo, List[Id]],
-        all_parcels: List[Parcel],
+        parcels: List[Parcel],
         start: Node,
     ):
         # Create agents with the given agent allocation
+        all_parcels = parcels.copy()
         self.agents = [
             Agent(info, agent_allocation[info], all_parcels, start)
             for info in agent_allocation

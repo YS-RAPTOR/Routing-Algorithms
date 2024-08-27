@@ -3,7 +3,7 @@ import numpy as np
 import importlib
 import pkgutil
 
-from common import DeliveryAgentInfo, Parcel, Route
+from common import DeliveryAgentInfo, Id, Parcel, Route
 from node import Node, NodeOptions
 from simulate import Agent, Simulator
 import test_algos
@@ -33,8 +33,8 @@ def create_agents(
     max_agents: int = 5,
     min_capacity: int = 5,
     max_capacity: int = 10,
-    min_dist: float = 5000,
-    max_dist: float = 20000,
+    min_dist: float = 500,
+    max_dist: float = 5000,
 ):
     # Randomly generate number of agents
     no_agents = np.random.randint(min_agents, max_agents)
@@ -50,13 +50,14 @@ def create_agents(
     ]
 
 
-def print_info(agent: Agent):
+def print_info(agent: Agent, allocation: List[Id]):
     print(f" Agent {agent.info.id} is Valid - {agent.is_valid}")
     print(f" Agent Capacity: {agent.info.max_capacity}")
     print(f" Agent Max Distance: {agent.info.max_dist}")
     if agent.is_valid:
         print(f" Agent is Carrying Parcels: {agent.parcels_delivered}")
         print(f" Agent travel distance: {agent.dist_travelled}")
+    print(f" Agent Allocation: {allocation}")
 
 
 def display_results(
@@ -71,9 +72,9 @@ def display_results(
 
     for agent in simulator.agents[:-1]:
         # Display agent information
-        print_info(agent)
+        print_info(agent, routes[agent.info].get_allocation())
         print()
-    print_info(simulator.agents[-1])
+    print_info(simulator.agents[-1], routes[simulator.agents[-1].info].get_allocation())
 
     # Display total distance and parcels
     print("-" * 79)
