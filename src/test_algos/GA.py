@@ -16,7 +16,6 @@ NUM_GENERATIONS = 100
 POPULATION_CUTOFF = 10
 
 TEXT_CENTER = 25
-DEBUG = True
 
 
 # Helper function to ensure that the string representation of a float has a certain width
@@ -160,6 +159,7 @@ class Population:
         population_cutoff: int = POPULATION_CUTOFF,
         crossover_rate: float = CROSSOVER_RATE,
         mutation_rate: float = MUTATION_RATE,
+        debug=False,
     ):
         # Create a population of DNA
         self.population = [
@@ -172,9 +172,10 @@ class Population:
         self.num_generations = num_generations
         self.mutation_rate = mutation_rate
         self.crossover_rate = crossover_rate
+        self.debug = debug
 
     def solution(self) -> Dict[DeliveryAgentInfo, Route]:
-        if DEBUG:
+        if self.debug:
             print("=" * 79)
             print(" GA Progress:")
             print("-" * 79)
@@ -196,7 +197,7 @@ class Population:
             # Evolve the population according to the fitness
             self.__evolution(fitness)
 
-        if DEBUG:
+        if self.debug:
             print()
 
         # Get the best solution from the population. Population top population_cutoffs is sorted by fitness
@@ -279,7 +280,7 @@ class Population:
         # Get the indices of the population from the fitness
         indices = fitness[:, 0]
 
-        if DEBUG:
+        if self.debug:
             generation_string = f"{self.generation_num:03}".center(TEXT_CENTER)
             highest_fitness_string = (
                 f"{float_ensure_width(fitness[0, 1], TEXT_CENTER - 6)}".center(
@@ -331,6 +332,9 @@ def model(
     root_node: Node,
     delivery_parcels: List[Parcel],
     delivery_agents: List[DeliveryAgentInfo],
+    debug=False,
 ) -> Dict[DeliveryAgentInfo, Route]:
     # Create a population of DNA and gets the solution
-    return Population(delivery_parcels, delivery_agents, root_node).solution()
+    return Population(
+        delivery_parcels, delivery_agents, root_node, debug=debug
+    ).solution()

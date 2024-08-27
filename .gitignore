@@ -3,3 +3,4 @@ __pycache__
 pyrightconfig.json
 .envrc
 .vscode
+*.prof

@@ -8,6 +8,11 @@ from node import Node, NodeOptions
 from simulate import Agent, Simulator
 import test_algos
 
+import cProfile
+import pstats
+
+DEBUG = True
+
 
 def create_parcels(
     no_of_nodes: int,
@@ -103,7 +108,18 @@ if __name__ == "__main__":
             continue
 
         # Run the model function
-        routes: Dict[DeliveryAgentInfo, Route] = submodule.model(root, parcels, agents)
+        if DEBUG:
+            with cProfile.Profile() as pr:
+                routes: Dict[DeliveryAgentInfo, Route] = submodule.model(
+                    root, parcels, agents, DEBUG
+                )
+            stats = pstats.Stats(pr)
+            stats.strip_dirs()
+            stats.dump_stats(f"{module_info.name}.prof")
+        else:
+            routes: Dict[DeliveryAgentInfo, Route] = submodule.model(
+                root, parcels, agents, DEBUG
+            )
 
         # Display results
         print("=" * 79)
