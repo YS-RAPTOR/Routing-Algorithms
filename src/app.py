@@ -90,7 +90,7 @@ class App:
 
         # NOTE: Creates node
         root = Node(0, 0, (0, 0, 0), 0)
-        print(f"No of Nodes Created: {root.create(NodeOptions())}")
+        print(f" No of Nodes Created: {root.create(NodeOptions())}")
 
         # NOTE: App Initialization
         self.draw_node = DrawNode(

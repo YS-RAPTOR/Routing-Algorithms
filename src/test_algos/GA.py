@@ -7,13 +7,23 @@ import numpy as np
 
 from simulate import Simulator
 
-MUTATION_RATE = 0.25
+MUTATION_RATE = 0.1
 CROSSOVER_RATE = 0.5
 
 POPULATION_SIZE = 100
 NUM_GENERATIONS = 100
 
 POPULATION_CUTOFF = 10
+
+TEXT_CENTER = 25
+
+
+def float_ensure_width(value: float, width: int) -> str:
+    value_part = str(int(value))
+    width -= len(value_part) + 1
+    width = max(width, 0)
+
+    return f"{value:.{width}f}"
 
 
 class AgentDNA:
@@ -133,9 +143,25 @@ class Population:
         self.crossover_rate = crossover_rate
 
     def solution(self) -> Dict[DeliveryAgentInfo, Route]:
+        print("=" * 79)
+        print(" GA Progress:")
+        print("-" * 79)
+        print(
+            "|"
+            + "Generation No".center(TEXT_CENTER)
+            + "|"
+            + "Highest Fitness".center(TEXT_CENTER)
+            + "|"
+            + "Average Fitness".center(TEXT_CENTER)
+            + "|"
+        )
+        print("-" * 79)
+
         for self.generation_num in range(self.num_generations):
             fitness = self.__calculate_fitness()
             self.__evolution(fitness)
+
+        print()
 
         winner = self.population[0]
         solution = {}
@@ -184,11 +210,26 @@ class Population:
 
         indices = fitness[:, 0]
 
+        generation_string = f"{self.generation_num:03}".center(TEXT_CENTER)
+        highest_fitness_string = (
+            f"{float_ensure_width(fitness[0, 1], TEXT_CENTER - 6)}".center(TEXT_CENTER)
+        )
+        average_fitness_string = f"{float_ensure_width(fitness[len(self.population)//2, 1], TEXT_CENTER - 6)}".center(
+            TEXT_CENTER
+        )
+        print(
+            "\r|"
+            + generation_string
+            + "|"
+            + highest_fitness_string
+            + "|"
+            + average_fitness_string
+            + "|",
+            end="",
+        )
         for i in range(len(self.population)):
             if i < self.population_cutoff:
                 new_population.append(self.population[int(indices[i])])
-                if i == 0:
-                    print(f"Generation {self.generation_num}: {fitness[i, 1]}")
                 continue
 
             parent1_index = np.random.choice(indices, p=probability)

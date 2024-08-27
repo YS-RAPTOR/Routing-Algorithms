@@ -5,7 +5,7 @@ import pkgutil
 
 from common import DeliveryAgentInfo, Parcel, Route
 from node import Node, NodeOptions
-from simulate import Simulator
+from simulate import Agent, Simulator
 import test_algos
 
 
@@ -43,27 +43,38 @@ def create_agents(
     ]
 
 
+def print_info(agent: Agent):
+    print(f" Agent {agent.info.id} is Valid - {agent.is_valid}")
+    print(f" Agent Capacity: {agent.info.max_capacity}")
+    print(f" Agent Max Distance: {agent.info.max_dist}")
+    if agent.is_valid:
+        print(f" Agent is Carrying Parcels: {agent.parcels_delivered}")
+        print(f" Agent travel distance: {agent.dist_travelled}")
+
+
 def display_results(
     node: Node, routes: Mapping[DeliveryAgentInfo, Route], parcels: List[Parcel]
 ):
-    print("Individual Agent Results:")
+    print(" Individual Agent Results:")
+    print("-" * 79)
+
     allocations = {agent: route.get_allocation() for agent, route in routes.items()}
     simulator = Simulator(allocations, parcels, node)
     total_parcels, total_distance, num_invalid_agents = simulator.simulate()
 
-    for agent in simulator.agents:
+    for agent in simulator.agents[:-1]:
         # Display agent information
-        print(f"Agent {agent.info.id} is Valid - {agent.is_valid}")
-        print(f"Agent Capacity: {agent.info.max_capacity}")
-        print(f"Agent Max Distance: {agent.info.max_dist}")
-        print(f"Agent is Carrying Parcels: {agent.parcels_delivered}")
-        print(f"Agent travel distance: {agent.dist_travelled}")
+        print_info(agent)
+        print()
+    print_info(simulator.agents[-1])
 
     # Display total distance and parcels
-    print()
-    print(f"Total Parcels Delivered: {total_parcels}")
-    print(f"Total Distance Travelled: {total_distance}")
-    print(f"Number of Invalid Agents: {num_invalid_agents}")
+    print("-" * 79)
+    print(" Total Results:")
+    print("-" * 79)
+    print(f" Total Parcels Delivered: {total_parcels}")
+    print(f" Total Distance Travelled: {total_distance}")
+    print(f" Number of Invalid Agents: {num_invalid_agents}")
 
 
 if __name__ == "__main__":
@@ -76,10 +87,12 @@ if __name__ == "__main__":
     parcels = create_parcels(no_of_nodes)
     agents = create_agents()
 
-    print("Test Data:")
-    print(f"Parcels: {len(parcels)}")
-    print(f"Agents: {len(agents)}")
-    print()
+    print("=" * 79)
+    print(" Test Data:")
+    print("-" * 79)
+    print(f" Parcels: {len(parcels)}")
+    print(f" Agents: {len(agents)}")
+
 
     # Run all test algorithms in the folder test_algos
     for module_info in pkgutil.iter_modules(test_algos.__path__):  # type: ignore
@@ -87,7 +100,7 @@ if __name__ == "__main__":
 
         # Check if the module has a model function
         if not hasattr(submodule, "model"):
-            print(f"Module {module_info.name} does not have a model function")
+            print(f" Module {module_info.name} does not have a model function")
             continue
 
         # Run the model function
@@ -96,6 +109,8 @@ if __name__ == "__main__":
         )
 
         # Display results
-        print(f"Results for {module_info.name}:")
+        print("=" * 79)
+        print(f" Results for {module_info.name}:")
+        print("-" * 79)
         display_results(root, routes, parcels)
         print()
