@@ -9,6 +9,7 @@ SPEED = 1
 # Returns the route between two nodes
 # The route is list of nodes starting from the end node to the start node
 # The end node is given as an Id
+# TODO: A* algorithm can be implemented for a more efficient route finding
 def get_route(start: Node, end: Id) -> List[Id]:
     # Create a queue for BFS and enqueue the starting node
     queue = deque([start])
@@ -39,6 +40,7 @@ def get_route(start: Node, end: Id) -> List[Id]:
     raise ValueError("No path found")
 
 
+# Returns the distance between two nodes given the start node and the end node's Id
 def get_distance(start: Node, end: Id) -> Tuple[float, Node]:
     end_node = start.find_immediate_from_id(end)
     if end_node is None:
@@ -83,6 +85,7 @@ class Agent:
                     return
 
         num_parcels = 0
+
         parcels_to_deliver: List[Id] = []
         removed_parcels: List[Parcel] = []
         parcel_map = {parcel.id: parcel for parcel in all_parcels}
@@ -97,7 +100,9 @@ class Agent:
             num_parcels += 1
             # Check if the parcel allocation exceeds the agent's capacity
             if num_parcels > info.max_capacity:
+                # Therefore the agent is invalid
                 self.is_valid = False
+                # Add the removed parcels back to the list of all parcels
                 for parcel in removed_parcels:
                     all_parcels.append(parcel)
                 return
@@ -107,7 +112,10 @@ class Agent:
             else:
                 # Parcel not found in the list of all parcels.
                 # That means the parcel was allocated to another agent
+                # Therefore the agent is invalid
                 self.is_valid = False
+
+                # Add the removed parcels back to the list of all parcels
                 for parcel in removed_parcels:
                     all_parcels.append(parcel)
                 return
@@ -116,6 +124,7 @@ class Agent:
             all_parcels.remove(parcel_map[parcel_id])
             removed_parcels.append(parcel_map[parcel_id])
 
+        # To make the algorithm more efficient. Popping from the end is faster
         parcels_to_deliver.reverse()
         # Remove the warehouse
         parcels_to_deliver.pop()
@@ -124,7 +133,9 @@ class Agent:
 
         # Check if the agent has at least one
         self.current_location = agent_starting_location
+
         self.running = True
+        # Route is a list of node ids starting from the end node to the start node
         self.calculate_route()
 
         if self.running:
@@ -133,23 +144,33 @@ class Agent:
                 if not self.calculate_route():
                     self.is_valid = False
                     return
+            # Sets the current target to the correct node id to visit according to the route
             self.current_target: Id = self.route.pop()
 
     def calculate_route(self) -> bool:
+        # If there are no more parcels to deliver, the agent is done
         if len(self.locations_to_visit) == 0:
             self.running = False
             return False
 
+        # The current parcel to deliver is the last element in the locations_to_visit list
         self.current_parcel_to_deliver = self.locations_to_visit.pop()
+
+        # Get the route from the current location to the current parcel to deliver
         self.route = get_route(self.current_location, self.current_parcel_to_deliver)
 
+        # If the route does not start from the current location, the route is invalid
         if self.route[-1] != self.current_location.id:
             raise ValueError("Route does not start from the current location")
 
+        # Remove the current location from the route
         self.current_target: Id = self.route.pop()
         return True
 
     def step(self) -> bool:
+        # If the agent is invalid, the agent cannot move
+        # If the agent has travelled the maximum distance, the agent cannot move
+        # If the agent is not running, the agent cannot move
         if (
             not self.is_valid
             or self.dist_travelled >= self.info.max_dist
@@ -157,18 +178,28 @@ class Agent:
         ):
             return False
 
+        # Calculate the distance between the current location and the current target
         distance, target = get_distance(self.current_location, self.current_target)
+
+        # If the agent has reached the current target
         if self.progress >= distance:
+            # Update the current location and the progress
             self.current_location = target
             self.progress -= distance
 
             while len(self.route) == 0:
+                # As longs as the agent is not in the warehouse add one to the parcels delivered
                 if self.current_location.id != 0:
                     self.parcels_delivered += 1
+                # Calculate the next route
                 if not self.calculate_route():
+                    # If there are no more parcels to deliver, the agent is done
                     return False
+
+            # Set the current target to the correct node id to visit according to the route
             self.current_target: Id = self.route.pop()
 
+        # Add the distance travelled and the progress according to the speed
         self.progress += SPEED
         self.dist_travelled += SPEED
         return True
@@ -181,12 +212,14 @@ class Simulator:
         all_parcels: List[Parcel],
         start: Node,
     ):
+        # Create agents with the given agent allocation
         self.agents = [
             Agent(info, agent_allocation[info], all_parcels, start)
             for info in agent_allocation
         ]
 
     def simulate(self) -> Tuple[int, float, int]:
+        # Run the simulation until all agents have finished
         running = [agent.is_valid for agent in self.agents]
         while any(running):
             running = [agent.step() for agent in self.agents]
@@ -195,11 +228,13 @@ class Simulator:
         total_parcels = 0
         num_invalid_agents = 0
 
+        # Calculate the total distance travelled and the total parcels delivered
         for agent in self.agents:
             if agent.is_valid:
                 total_distance += agent.dist_travelled
                 total_parcels += agent.parcels_delivered
             else:
+                # If the agent is invalid, increment the number of invalid
                 num_invalid_agents += 1
 
         return total_parcels, total_distance, num_invalid_agents
