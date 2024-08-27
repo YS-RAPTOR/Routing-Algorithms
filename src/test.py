@@ -10,8 +10,10 @@ import test_algos
 
 import cProfile
 import pstats
+import time
 
 DEBUG = True
+CHECK_PERFORMANCE = False
 
 
 def create_parcels(
@@ -108,14 +110,14 @@ if __name__ == "__main__":
             continue
 
         # Run the model function
-        if DEBUG:
+        if CHECK_PERFORMANCE:
             with cProfile.Profile() as pr:
                 routes: Dict[DeliveryAgentInfo, Route] = submodule.model(
                     root, parcels, agents, DEBUG
                 )
             stats = pstats.Stats(pr)
             stats.strip_dirs()
-            stats.dump_stats(f"{module_info.name}.prof")
+            stats.dump_stats(f"profiling/{module_info.name}-{time.time()}.prof")
         else:
             routes: Dict[DeliveryAgentInfo, Route] = submodule.model(
                 root, parcels, agents, DEBUG

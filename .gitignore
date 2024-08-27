@@ -4,3 +4,4 @@ pyrightconfig.json
 .envrc
 .vscode
 *.prof
+profiling
