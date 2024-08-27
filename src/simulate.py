@@ -139,6 +139,13 @@ class Agent:
                     return
             # Sets the current target to the correct node id to visit according to the route
             self.current_target: Id = self.route.pop()
+            # Calculate the distance between the current location and the current target
+            self.target_location: Node = self.current_location.find_immediate_from_id(
+                self.current_target
+            )  # type: ignore
+            self.distance_to_target = np.linalg.norm(
+                self.current_location.loc - self.target_location.loc
+            )
 
     def calculate_route(self) -> bool:
         # If there are no more parcels to deliver, the agent is done
@@ -171,15 +178,11 @@ class Agent:
         ):
             return False
 
-        # Calculate the distance between the current location and the current target
-        target: Node = self.current_location.find_immediate_from_id(self.current_target)  # type: ignore
-        distance = np.linalg.norm(self.current_location.loc - target.loc)  # type: ignore
-
         # If the agent has reached the current target
-        if self.progress >= distance:
+        if self.progress >= self.distance_to_target:
             # Update the current location and the progress
-            self.current_location = target
-            self.progress -= distance
+            self.current_location = self.target_location
+            self.progress -= self.distance_to_target  # type: ignore
 
             while len(self.route) == 0:
                 # As longs as the agent is not in the warehouse add one to the parcels delivered
@@ -192,6 +195,13 @@ class Agent:
 
             # Set the current target to the correct node id to visit according to the route
             self.current_target: Id = self.route.pop()
+            # Calculate the distance between the current location and the current target
+            self.target_location: Node = self.current_location.find_immediate_from_id(
+                self.current_target
+            )  # type: ignore
+            self.distance_to_target = np.linalg.norm(
+                self.current_location.loc - self.target_location.loc
+            )
 
         # Add the distance travelled and the progress according to the speed
         self.progress += SPEED
