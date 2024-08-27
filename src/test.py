@@ -3,8 +3,9 @@ import numpy as np
 import importlib
 import pkgutil
 
-from common import DeliveryAgent, Parcel, Route
+from common import DeliveryAgentInfo, Parcel, Route
 from node import Node, NodeOptions
+from simulate import Agent, Simulator
 import test_algos
 
 
@@ -21,19 +22,19 @@ def create_parcels(
 
 
 def create_agents(
-    min_agents: int = 1,
-    max_agents: int = 3,
+    min_agents: int = 3,
+    max_agents: int = 5,
     min_capacity: int = 5,
     max_capacity: int = 10,
-    min_dist: float = 10,
-    max_dist: float = 20,
+    min_dist: float = 5000,
+    max_dist: float = 20000,
 ):
     # Randomly generate number of agents
     no_agents = np.random.randint(min_agents, max_agents)
 
     # Randomly assign capacity and max distance to agents
     return [
-        DeliveryAgent(
+        DeliveryAgentInfo(
             i,
             np.random.randint(min_capacity, max_capacity),
             np.random.uniform(min_dist, max_dist),
@@ -42,68 +43,38 @@ def create_agents(
     ]
 
 
+def print_info(agent: Agent):
+    print(f" Agent {agent.info.id} is Valid - {agent.is_valid}")
+    print(f" Agent Capacity: {agent.info.max_capacity}")
+    print(f" Agent Max Distance: {agent.info.max_dist}")
+    if agent.is_valid:
+        print(f" Agent is Carrying Parcels: {agent.parcels_delivered}")
+        print(f" Agent travel distance: {agent.dist_travelled}")
+
+
 def display_results(
-    node: Node, routes: Mapping[DeliveryAgent, Route], parcels: List[Parcel]
+    node: Node, routes: Mapping[DeliveryAgentInfo, Route], parcels: List[Parcel]
 ):
-    # Keep track of total distance and parcels
-    total_distance = 0
-    total_parcels = 0
+    print(" Individual Agent Results:")
+    print("-" * 79)
 
-    print("Individual Agent Results:")
-    for agent, route in routes.items():
+    allocations = {agent: route.get_allocation() for agent, route in routes.items()}
+    simulator = Simulator(allocations, parcels, node)
+    total_parcels, total_distance, num_invalid_agents = simulator.simulate()
+
+    for agent in simulator.agents[:-1]:
         # Display agent information
-        print(f"Agent {agent.id}:")
-        print(f"Agent Capacity: {agent.max_capacity}")
-        print(f"Agent Max Distance: {agent.max_dist}")
-
-        parcels = route.get_parcels()
-        # Check if agent has exceeded capacity
-        if len(parcels) > agent.max_capacity:
-            raise Exception("Agent has exceeded capacity")
-
-        # Display parcels carried by agent
-        print(f"Agent is Carrying Parcels: {parcels}")
-        distance = 0
-
-        # Check if the route is valid
-        if route.locations[0] != 0:
-            raise Exception(f"Route for agent {agent.id} does not start at warehouse")
-        if route.locations[-1] != 0:
-            raise Exception(f"Route for agent {agent.id} does not end at warehouse")
-
-        current_node: Node = node
-        for loc, drop in zip(route.locations[1::], route.drops[1::]):
-            # Checks if the route is valid
-            travelling_to_node = current_node.find_immediate_from_id(loc)
-            if travelling_to_node is None:
-                raise Exception(f"Invalid route for agent {agent.id}")
-
-            # Calculate distance travelled between nodes
-            distance += np.sqrt(
-                (current_node.x - travelling_to_node.x) ** 2
-                + (current_node.y - travelling_to_node.y) ** 2
-            )
-
-            # Check if there is a drop
-            if drop != -1:
-                # Check if the drop is valid
-                if Parcel(drop, travelling_to_node.id) not in parcels:
-                    raise Exception(f"Agent {agent.id} has invalid drop")
-
-                # Increment parcels delivered
-                total_parcels += 1
-
-            # Move to next node
-            current_node = travelling_to_node
-
-        # Calculate distance travelled by agent
-        print(f"Agent travel distance: {distance}")
-        total_distance += distance
+        print_info(agent)
+        print()
+    print_info(simulator.agents[-1])
 
     # Display total distance and parcels
-    print()
-    print(f"Total Parcels Delivered: {total_parcels}")
-    print(f"Total Distance Travelled: {total_distance}")
+    print("-" * 79)
+    print(" Total Results:")
+    print("-" * 79)
+    print(f" Total Parcels Delivered: {total_parcels}")
+    print(f" Total Distance Travelled: {total_distance}")
+    print(f" Number of Invalid Agents: {num_invalid_agents}")
 
 
 if __name__ == "__main__":
@@ -116,19 +87,30 @@ if __name__ == "__main__":
     parcels = create_parcels(no_of_nodes)
     agents = create_agents()
 
+    print("=" * 79)
+    print(" Test Data:")
+    print("-" * 79)
+    print(f" Parcels: {len(parcels)}")
+    print(f" Agents: {len(agents)}")
+
+
     # Run all test algorithms in the folder test_algos
     for module_info in pkgutil.iter_modules(test_algos.__path__):  # type: ignore
         submodule = importlib.import_module(f"test_algos.{module_info.name}")
 
         # Check if the module has a model function
         if not hasattr(submodule, "model"):
-            print(f"Module {module_info.name} does not have a model function")
+            print(f" Module {module_info.name} does not have a model function")
             continue
 
         # Run the model function
-        routes: Mapping[DeliveryAgent, Route] = submodule.model(root, parcels, agents)
+        routes: Mapping[DeliveryAgentInfo, Route] = submodule.model(
+            root, parcels, agents
+        )
 
         # Display results
-        print(f"Results for {module_info.name}:")
+        print("=" * 79)
+        print(f" Results for {module_info.name}:")
+        print("-" * 79)
         display_results(root, routes, parcels)
         print()
