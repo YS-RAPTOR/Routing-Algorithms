@@ -1,4 +1,4 @@
-from typing import Dict, Set, Tuple, List
+from typing import Set, Tuple, List
 from typing_extensions import Self
 from dataclasses import dataclass
 import numpy as np
@@ -102,7 +102,7 @@ class Node:
                     distance = np.random.randint(opts.min_dist, opts.max_dist)
                     # Calculate the direction to the root node
                     dir = np.rad2deg(
-                        np.arctan2((root.x - current.x), (root.y - current.y))
+                        np.arctan2((root.y - current.y), (root.x - current.x))
                     )
                     # Add some randomness to the direction
                     dir += np.random.randint(
