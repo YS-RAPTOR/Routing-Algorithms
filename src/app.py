@@ -39,8 +39,11 @@ class DrawNode:
             pygame.draw.aaline(
                 surface,
                 neighbour.color,
-                ((node.x * zoom + offset[0], node.y * zoom + offset[1])),
-                ((neighbour.x * zoom + offset[0]), (neighbour.y * zoom + offset[1])),
+                (int(node.x * zoom + offset[0]), int(node.y * zoom + offset[1])),
+                (
+                    int(neighbour.x * zoom + offset[0]),
+                    int(neighbour.y * zoom + offset[1]),
+                ),
                 max(self.line_width, int(zoom * self.line_width)),
             )
             if neighbour in visited:
@@ -50,7 +53,7 @@ class DrawNode:
         pygame.draw.circle(
             surface,
             node.color,
-            ((node.x * zoom + offset[0]), (node.y * zoom + offset[1])),
+            (int(node.x * zoom + offset[0]), int(node.y * zoom + offset[1])),
             max(self.node_radius, int(zoom * self.node_radius)),
         )
 

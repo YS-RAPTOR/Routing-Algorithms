@@ -1,6 +1,7 @@
 from typing import Dict, Set, Tuple, List
 from typing_extensions import Self
 from dataclasses import dataclass
+import numpy as np
 
 
 @dataclass
@@ -97,10 +98,12 @@ class Node:
                 current = self
 
                 # Check if the distance between the current node and the root node is greater than the maximum distance
-                while root.simple_distance(current) > opts.max_dist:  # type: ignore
+                while current.simple_distance(root) > opts.max_dist:  # type: ignore
                     distance = np.random.randint(opts.min_dist, opts.max_dist)
                     # Calculate the direction to the root node
-                    dir = np.rad2deg(np.arctan2(root.x - current.x, root.y - current.y))
+                    dir = np.rad2deg(
+                        np.arctan2((root.x - current.x), (root.y - current.y))
+                    )
                     # Add some randomness to the direction
                     dir += np.random.randint(
                         -opts.return_angle_range, opts.return_angle_range
@@ -209,5 +212,5 @@ class Node:
                 return neighbour  # type: ignore
         return None
 
-    def simple_distance(self, other: Self) -> float:
-        return np.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
+    def simple_distance(self, end: Self) -> float:
+        return np.sqrt((self.x - end.x) ** 2 + (self.y - end.y) ** 2)

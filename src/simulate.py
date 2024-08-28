@@ -200,10 +200,9 @@ class Agent:
             self.target_location: Node = self.current_location.find_immediate_from_id(
                 self.current_target
             )  # type: ignore
-            self.distance_to_target = np.linalg.norm(
-                self.current_location.loc - self.target_location.loc
+            self.distance_to_target = self.current_location.simple_distance(
+                self.target_location
             )
-
         # Add the distance travelled and the progress according to the speed
         self.progress += SPEED
         self.dist_travelled += SPEED
