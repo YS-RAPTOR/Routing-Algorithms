@@ -254,6 +254,8 @@ class Population:
 
         for i, dna in enumerate(self.population):
             # Get the parcels and distance from the simulation when calculating the fitness
+            # TODO: Replace with zig simulator that just returns an array of arrays
+            # [[index, parcels, distance, invalid],.....n]
             parcels, distance, invalid = dna.calculate_fitness()
 
             # Track the number of agents that are invalid

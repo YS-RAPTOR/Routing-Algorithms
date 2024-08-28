@@ -169,13 +169,14 @@ class Agent:
 
     def step(self) -> bool:
         # If the agent is invalid, the agent cannot move
-        # If the agent has travelled the maximum distance, the agent cannot move
         # If the agent is not running, the agent cannot move
-        if (
-            not self.is_valid
-            or self.dist_travelled >= self.info.max_dist
-            or not self.running
-        ):
+        if not self.is_valid or not self.running:
+            return False
+
+        # If the agent has travelled the maximum distance, the agent cannot move
+        # Make sure the agent does not travel more than the maximum distance
+        if self.dist_travelled >= self.info.max_dist:
+            self.dist_travelled = self.info.max_dist
             return False
 
         # If the agent has reached the current target
@@ -206,6 +207,7 @@ class Agent:
         # Add the distance travelled and the progress according to the speed
         self.progress += SPEED
         self.dist_travelled += SPEED
+
         return True
 
 
