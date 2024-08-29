@@ -1,22 +1,27 @@
-from typing import Dict, List, Mapping
+from typing import Dict, List
 from typing_extensions import Self
 from common import DeliveryAgentInfo, Parcel, Route, Id
 from node import Node
 
 import numpy as np
 
-from simulate import Simulator
+from Simulator import Simulator
 
-MUTATION_RATE = 0.1
-CROSSOVER_RATE = 0.5
 
-POPULATION_SIZE = 100
-NUM_GENERATIONS = 100
-
+NUM_GENERATIONS = 400
+POPULATION_SIZE = 200
 POPULATION_CUTOFF = 10
 
+WAREHOUSE_CHANCE = 0.3
+
+CROSSOVER_RATE = 0.25
+MUTATION_RATE = 0.025
+
+MUTATION_ADD = 0.45
+MUTATION_CHANGE = 0.35
+MUTATION_REMOVE = 0.2
+
 TEXT_CENTER = 25
-DEBUG = True
 
 
 # Helper function to ensure that the string representation of a float has a certain width
@@ -44,12 +49,15 @@ class AgentDNA:
         if initialize:
             num_genes = np.random.randint(1, max_starting_genes)
             self.genes: List[Id] = [self.get_random_genome() for _ in range(num_genes)]
+            self.genes[0] = -1
         else:
             self.genes: List[Id] = []
 
     def get_random_genome(self):
         # -1 is used to represent the warehouse location.
         # highest_parcel_id is the biggest parcel id + 1
+        if np.random.rand() < WAREHOUSE_CHANCE:
+            return -1
         return np.random.randint(-1, self.highest_parcel_id)
 
     def crossover(self, other: Self, crossover_rate):
@@ -67,7 +75,14 @@ class AgentDNA:
         for i in range(len(self.genes)):
             # Mutate the genes of the agent with a certain probability
             if np.random.rand() < mutation_rate:
-                choice = np.random.randint(0, 3)
+                choice = np.random.choice(
+                    [0, 1, 2],
+                    p=[
+                        MUTATION_CHANGE,
+                        MUTATION_REMOVE,
+                        MUTATION_ADD,
+                    ],
+                )
                 if choice == 0:
                     # Randomly change the value of the gene
                     self.genes[i] = self.get_random_genome()
@@ -76,7 +91,8 @@ class AgentDNA:
                     removals += 1
                 if choice == 2:
                     # Add a gene
-                    self.genes.append(self.get_random_genome())
+                    choice = np.random.randint(0, len(self.genes))
+                    self.genes.insert(choice, self.get_random_genome())
 
         # Remove the genes that were marked for removal
         for _ in range(removals):
@@ -97,44 +113,22 @@ class AgentDNA:
 class DNA:
     def __init__(
         self,
-        delivery_parcels: List[Parcel],
+        highest_parcel_id: int,
         delivery_agents: List[DeliveryAgentInfo],
-        starting_location: Node,
         initialize: bool = True,
     ):
         # If initialize is True, the DNA will be initialized with Agents and their genes
         if initialize:
             self.dna: List[AgentDNA] = [
-                AgentDNA(len(delivery_parcels), 2 * agent.max_capacity)
+                AgentDNA(highest_parcel_id, 2 * agent.max_capacity)
                 for agent in delivery_agents
             ]
         else:
             self.dna: List[AgentDNA] = []
 
-        self.delivery_agents = delivery_agents
-        self.delivery_parcels = delivery_parcels
-        self.starting_location = starting_location
-
-    def calculate_fitness(self):
-        # Calculate the fitness of the DNA
-        # Allocation is calculated from the DNA
-        allocation = {
-            agent: gene.genes for agent, gene in zip(self.delivery_agents, self.dna)
-        }
-
-        # Simulate the allocation and return the results
-        return Simulator(
-            allocation, self.delivery_parcels.copy(), self.starting_location
-        ).simulate()
-
     def copy(self):
         # Create a copy of the DNA
-        other = DNA(
-            self.delivery_parcels,
-            self.delivery_agents,
-            self.starting_location,
-            False,
-        )
+        other = DNA(0, [], False)
         for i in range(len(self.dna)):
             other.dna.append(self.dna[i].copy())
         return other
@@ -160,11 +154,11 @@ class Population:
         population_cutoff: int = POPULATION_CUTOFF,
         crossover_rate: float = CROSSOVER_RATE,
         mutation_rate: float = MUTATION_RATE,
+        debug=False,
     ):
         # Create a population of DNA
         self.population = [
-            DNA(delivery_parcels, delivery_agents, starting_location)
-            for _ in range(populations_size)
+            DNA(len(delivery_parcels), delivery_agents) for _ in range(populations_size)
         ]
 
         # Set the parameters of the genetic algorithm
@@ -172,9 +166,14 @@ class Population:
         self.num_generations = num_generations
         self.mutation_rate = mutation_rate
         self.crossover_rate = crossover_rate
+        self.debug = debug
+        self.simulator = Simulator(starting_location, delivery_parcels)
+        self.delivery_agents = delivery_agents
+        self.delivery_parcels = delivery_parcels
+        self.starting_location = starting_location
 
     def solution(self) -> Dict[DeliveryAgentInfo, Route]:
-        if DEBUG:
+        if self.debug:
             print("=" * 79)
             print(" GA Progress:")
             print("-" * 79)
@@ -196,7 +195,7 @@ class Population:
             # Evolve the population according to the fitness
             self.__evolution(fitness)
 
-        if DEBUG:
+        if self.debug:
             print()
 
         # Get the best solution from the population. Population top population_cutoffs is sorted by fitness
@@ -205,10 +204,10 @@ class Population:
         # Create a dictionary of the solution
         solution = {}
         # Create a mapping of the parcel id to the parcel
-        parcel_map = {parcel.id: parcel for parcel in winner.delivery_parcels}
+        parcel_map = {parcel.id: parcel for parcel in self.delivery_parcels}
 
         # Create a dictionary of agents and their routes
-        for agent_info, allocation in zip(winner.delivery_agents, winner.dna):
+        for agent_info, allocation in zip(self.delivery_agents, winner.dna):
             # Create a route from the allocation
             route: Route = Route([])
             for gene in allocation.genes:
@@ -228,31 +227,19 @@ class Population:
         # Get the population size
         pop_size = len(self.population)
 
-        # Create an array to store the information of the population that will be returned from the simulation
-        info = np.zeros((pop_size, 3))
+        allocations = [
+            {agent: gene.genes for agent, gene in zip(self.delivery_agents, p.dna)}
+            for p in self.population
+        ]
+
+        infos = np.array(self.simulator.simulate(allocations))
 
         # Calculate the maximum distance that the agents travelled
-        max_distance = 0
-        no_invalid_agents = 0
-
-        for i, dna in enumerate(self.population):
-            # Get the parcels and distance from the simulation when calculating the fitness
-            parcels, distance, invalid = dna.calculate_fitness()
-
-            # Track the number of agents that are invalid
-            no_invalid_agents += invalid
-
-            # Find the maximum distance that the agents travelled.
-            # The multiplication by 1.1 is used to ensure the when normalizing the distances no distance is equal to 1
-            max_distance = max(max_distance, distance * 1.1)
-
-            # Store the information of the population
-            # First column is the index of the dna in the population
-            info[i] = [i, parcels, distance]
+        max_distance = np.max(infos[:, 2]) * 1.1
 
         # Normalize the distance of the agents by the maximum distance
         if max_distance != 0:
-            info[:, 2] = info[:, 2] / max_distance
+            infos[:, 2] = infos[:, 2] / max_distance
 
         # Calculate the fitness of the population
         fitness = np.zeros((pop_size, 2))
@@ -261,7 +248,7 @@ class Population:
             # No of parcels is prioritized over distance therefore it is important that the distance cannot be equal to 1
             # This is achieved by multiplying the max_distance by 1.1 before normalizing
             # A small value is added to make sure that no instance is equal to 0
-            fitness[i] = [info[i, 0], info[i, 1] + info[i, 2] + 0.001]
+            fitness[i] = [infos[i, 0], infos[i, 1] + infos[i, 2] + 0.001]
 
         # Return the sorted fitness
         return fitness[fitness[:, 1].argsort()][::-1]
@@ -279,7 +266,7 @@ class Population:
         # Get the indices of the population from the fitness
         indices = fitness[:, 0]
 
-        if DEBUG:
+        if self.debug:
             generation_string = f"{self.generation_num:03}".center(TEXT_CENTER)
             highest_fitness_string = (
                 f"{float_ensure_width(fitness[0, 1], TEXT_CENTER - 6)}".center(
@@ -331,6 +318,9 @@ def model(
     root_node: Node,
     delivery_parcels: List[Parcel],
     delivery_agents: List[DeliveryAgentInfo],
+    debug: bool = False,
 ) -> Dict[DeliveryAgentInfo, Route]:
     # Create a population of DNA and gets the solution
-    return Population(delivery_parcels, delivery_agents, root_node).solution()
+    return Population(
+        delivery_parcels, delivery_agents, root_node, debug=debug
+    ).solution()

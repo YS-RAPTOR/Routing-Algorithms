@@ -5,6 +5,52 @@ from node import Node
 
 SPEED = 1
 
+"""
+
+
+
+NOTE: DO NOT USE THIS FUNCTION
+import Simulator from Simulator
+Much Faster and Efficient
+
+```python
+from Simulator import Simulator
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""
+
 
 # Returns the route between two nodes
 # The route is list of nodes starting from the end node to the start node
@@ -38,15 +84,6 @@ def get_route(start: Node, end: Id) -> List[Id]:
                 queue.append(neighbor)
 
     raise ValueError("No path found")
-
-
-# Returns the distance between two nodes given the start node and the end node's Id
-def get_distance(start: Node, end: Id) -> Tuple[float, Node]:
-    end_node = start.find_immediate_from_id(end)
-    if end_node is None:
-        raise ValueError("End node not found")
-
-    return start.simple_distance_to(end_node), end_node
 
 
 class Agent:
@@ -146,6 +183,13 @@ class Agent:
                     return
             # Sets the current target to the correct node id to visit according to the route
             self.current_target: Id = self.route.pop()
+            # Calculate the distance between the current location and the current target
+            self.target_location: Node = self.current_location.find_immediate_from_id(
+                self.current_target
+            )  # type: ignore
+            self.distance_to_target = self.current_location.simple_distance(
+                self.target_location
+            )
 
     def calculate_route(self) -> bool:
         # If there are no more parcels to deliver, the agent is done
@@ -169,23 +213,21 @@ class Agent:
 
     def step(self) -> bool:
         # If the agent is invalid, the agent cannot move
-        # If the agent has travelled the maximum distance, the agent cannot move
         # If the agent is not running, the agent cannot move
-        if (
-            not self.is_valid
-            or self.dist_travelled >= self.info.max_dist
-            or not self.running
-        ):
+        if not self.is_valid or not self.running:
             return False
 
-        # Calculate the distance between the current location and the current target
-        distance, target = get_distance(self.current_location, self.current_target)
+        # If the agent has travelled the maximum distance, the agent cannot move
+        # Make sure the agent does not travel more than the maximum distance
+        if self.dist_travelled >= self.info.max_dist:
+            self.dist_travelled = self.info.max_dist
+            return False
 
         # If the agent has reached the current target
-        if self.progress >= distance:
+        if self.progress >= self.distance_to_target:
             # Update the current location and the progress
-            self.current_location = target
-            self.progress -= distance
+            self.current_location = self.target_location
+            self.progress -= self.distance_to_target  # type: ignore
 
             while len(self.route) == 0:
                 # As longs as the agent is not in the warehouse add one to the parcels delivered
@@ -198,10 +240,17 @@ class Agent:
 
             # Set the current target to the correct node id to visit according to the route
             self.current_target: Id = self.route.pop()
-
+            # Calculate the distance between the current location and the current target
+            self.target_location: Node = self.current_location.find_immediate_from_id(
+                self.current_target
+            )  # type: ignore
+            self.distance_to_target = self.current_location.simple_distance(
+                self.target_location
+            )
         # Add the distance travelled and the progress according to the speed
         self.progress += SPEED
         self.dist_travelled += SPEED
+
         return True
 
 
@@ -209,10 +258,11 @@ class Simulator:
     def __init__(
         self,
         agent_allocation: Dict[DeliveryAgentInfo, List[Id]],
-        all_parcels: List[Parcel],
+        parcels: List[Parcel],
         start: Node,
     ):
         # Create agents with the given agent allocation
+        all_parcels = parcels.copy()
         self.agents = [
             Agent(info, agent_allocation[info], all_parcels, start)
             for info in agent_allocation

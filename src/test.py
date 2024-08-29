@@ -1,12 +1,19 @@
-from typing import List, Mapping
+from typing import Dict
 import numpy as np
 import importlib
 import pkgutil
 
 from common import DeliveryAgentInfo, Parcel, Route
 from node import Node, NodeOptions
-from simulate import Agent, Simulator
+from Simulator import Simulator
 import test_algos
+
+import cProfile
+import pstats
+import time
+
+DEBUG = True
+CHECK_PERFORMANCE = False
 
 
 def create_parcels(
@@ -26,8 +33,8 @@ def create_agents(
     max_agents: int = 5,
     min_capacity: int = 5,
     max_capacity: int = 10,
-    min_dist: float = 5000,
-    max_dist: float = 20000,
+    min_dist: float = 500,
+    max_dist: float = 5000,
 ):
     # Randomly generate number of agents
     no_agents = np.random.randint(min_agents, max_agents)
@@ -43,30 +50,36 @@ def create_agents(
     ]
 
 
-def print_info(agent: Agent):
-    print(f" Agent {agent.info.id} is Valid - {agent.is_valid}")
-    print(f" Agent Capacity: {agent.info.max_capacity}")
-    print(f" Agent Max Distance: {agent.info.max_dist}")
-    if agent.is_valid:
-        print(f" Agent is Carrying Parcels: {agent.parcels_delivered}")
-        print(f" Agent travel distance: {agent.dist_travelled}")
+def print_info(agent: DeliveryAgentInfo, allocation, results):
+    print(f" Agent {agent.id} is Valid - {results[0]}")
+    print(f" Agent Capacity: {agent.max_capacity}")
+    print(f" Agent Max Distance: {agent.max_dist}")
+    if results[0]:
+        print(f" Agent is Carrying Parcels: {results[1]}")
+        print(f" Agent travel distance: {results[2]}")
+    print(f" Agent Allocation: {allocation}")
 
 
 def display_results(
-    node: Node, routes: Mapping[DeliveryAgentInfo, Route], parcels: List[Parcel]
+    simulator: Simulator,
+    routes: Dict[DeliveryAgentInfo, Route],
 ):
     print(" Individual Agent Results:")
     print("-" * 79)
 
-    allocations = {agent: route.get_allocation() for agent, route in routes.items()}
-    simulator = Simulator(allocations, parcels, node)
-    total_parcels, total_distance, num_invalid_agents = simulator.simulate()
+    allocations = [{agent: route.get_allocation() for agent, route in routes.items()}]
 
-    for agent in simulator.agents[:-1]:
+    _, total_parcels, total_distance = simulator.simulate(allocations)[0]
+    num_invalid_agents = 0
+
+    agent_results = simulator.get_agent_results(0)
+    agents = list(routes.keys())
+    for results, agent in zip(agent_results, agents):
         # Display agent information
-        print_info(agent)
+        print_info(agent, routes[agent].get_allocation(), results)
         print()
-    print_info(simulator.agents[-1])
+
+    print_info(agents[-1], routes[agents[-1]].get_allocation(), agent_results[-1])
 
     # Display total distance and parcels
     print("-" * 79)
@@ -86,13 +99,14 @@ if __name__ == "__main__":
     np.random.seed(0)
     parcels = create_parcels(no_of_nodes)
     agents = create_agents()
+    simulator = Simulator(root, parcels)
 
     print("=" * 79)
     print(" Test Data:")
     print("-" * 79)
     print(f" Parcels: {len(parcels)}")
     print(f" Agents: {len(agents)}")
-
+    print(f" Nodes: {no_of_nodes}")
 
     # Run all test algorithms in the folder test_algos
     for module_info in pkgutil.iter_modules(test_algos.__path__):  # type: ignore
@@ -104,13 +118,22 @@ if __name__ == "__main__":
             continue
 
         # Run the model function
-        routes: Mapping[DeliveryAgentInfo, Route] = submodule.model(
-            root, parcels, agents
-        )
+        if CHECK_PERFORMANCE:
+            with cProfile.Profile() as pr:
+                routes: Dict[DeliveryAgentInfo, Route] = submodule.model(
+                    root, parcels, agents, DEBUG
+                )
+            stats = pstats.Stats(pr)
+            stats.strip_dirs()
+            stats.dump_stats(f"profiling/{module_info.name}-{time.time()}.prof")
+        else:
+            routes: Dict[DeliveryAgentInfo, Route] = submodule.model(
+                root, parcels, agents, DEBUG
+            )
 
         # Display results
         print("=" * 79)
         print(f" Results for {module_info.name}:")
         print("-" * 79)
-        display_results(root, routes, parcels)
+        display_results(simulator, routes)
         print()

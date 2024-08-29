@@ -39,7 +39,7 @@ class Node:
         self.y = y
         self.id = id
         self.color = color
-        self.neighbours = []
+        self.neighbours: List[Node] = []
         self.bbox = None
 
     def create(self, opts: NodeOptions) -> int:
@@ -98,10 +98,7 @@ class Node:
                 current = self
 
                 # Check if the distance between the current node and the root node is greater than the maximum distance
-                while (
-                    np.sqrt((current.x - root.x) ** 2 + (current.y - root.y) ** 2)
-                    > opts.max_dist
-                ):
+                while current.simple_distance(root) > opts.max_dist:  # type: ignore
                     distance = np.random.randint(opts.min_dist, opts.max_dist)
                     # Calculate the direction to the root node
                     dir = np.rad2deg(
@@ -187,12 +184,13 @@ class Node:
         for neighbour in self.neighbours:
             if neighbour in visited:
                 continue
-            rect = neighbour.__find_bbox(visited, rect)
+            rect = neighbour.__find_bbox(visited, rect)  # type: ignore
 
             if neighbour.x < rect[0]:
                 rect[0] = neighbour.x
             if neighbour.x > rect[2]:
                 rect[2] = neighbour.x
+
             if neighbour.y < rect[1]:
                 rect[1] = neighbour.y
             if neighbour.y > rect[3]:
@@ -204,15 +202,15 @@ class Node:
         for neighbour in self.neighbours:
             if neighbour in visited:
                 continue
-            neighbour.get_all_nodes(visited)
+            neighbour.get_all_nodes(visited)  # type: ignore
         return visited
 
     def find_immediate_from_id(self, id: int) -> Self | None:
         # Find the immediate child or parent node that has the given id
         for neighbour in self.neighbours:
             if neighbour.id == id:
-                return neighbour
+                return neighbour  # type: ignore
         return None
 
-    def simple_distance_to(self, end: Self) -> float:
+    def simple_distance(self, end: Self) -> float:
         return np.sqrt((self.x - end.x) ** 2 + (self.y - end.y) ** 2)

@@ -9,6 +9,7 @@ def model(
     root_node: Node,
     delivery_parcels: List[Parcel],
     delivery_agents: List[DeliveryAgentInfo],
+    debug: bool = False,
 ) -> Mapping[DeliveryAgentInfo, Route]:
     return {
         DeliveryAgentInfo(0, 2, 3): Route(
