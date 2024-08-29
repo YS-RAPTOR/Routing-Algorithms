@@ -5,7 +5,7 @@ from node import Node
 
 import numpy as np
 
-from simulate import Simulator
+from Simulator import Simulator
 
 
 NUM_GENERATIONS = 400
@@ -49,6 +49,7 @@ class AgentDNA:
         if initialize:
             num_genes = np.random.randint(1, max_starting_genes)
             self.genes: List[Id] = [self.get_random_genome() for _ in range(num_genes)]
+            self.genes[0] = -1
         else:
             self.genes: List[Id] = []
 
@@ -112,44 +113,22 @@ class AgentDNA:
 class DNA:
     def __init__(
         self,
-        delivery_parcels: List[Parcel],
+        highest_parcel_id: int,
         delivery_agents: List[DeliveryAgentInfo],
-        starting_location: Node,
         initialize: bool = True,
     ):
         # If initialize is True, the DNA will be initialized with Agents and their genes
         if initialize:
             self.dna: List[AgentDNA] = [
-                AgentDNA(len(delivery_parcels), 2 * agent.max_capacity)
+                AgentDNA(highest_parcel_id, 2 * agent.max_capacity)
                 for agent in delivery_agents
             ]
         else:
             self.dna: List[AgentDNA] = []
 
-        self.delivery_agents = delivery_agents
-        self.delivery_parcels = delivery_parcels
-        self.starting_location = starting_location
-
-    def calculate_fitness(self):
-        # Calculate the fitness of the DNA
-        # Allocation is calculated from the DNA
-        allocation = {
-            agent: gene.genes for agent, gene in zip(self.delivery_agents, self.dna)
-        }
-
-        # Simulate the allocation and return the results
-        return Simulator(
-            allocation, self.delivery_parcels, self.starting_location
-        ).simulate()
-
     def copy(self):
         # Create a copy of the DNA
-        other = DNA(
-            self.delivery_parcels,
-            self.delivery_agents,
-            self.starting_location,
-            False,
-        )
+        other = DNA(0, [], False)
         for i in range(len(self.dna)):
             other.dna.append(self.dna[i].copy())
         return other
@@ -179,8 +158,7 @@ class Population:
     ):
         # Create a population of DNA
         self.population = [
-            DNA(delivery_parcels, delivery_agents, starting_location)
-            for _ in range(populations_size)
+            DNA(len(delivery_parcels), delivery_agents) for _ in range(populations_size)
         ]
 
         # Set the parameters of the genetic algorithm
@@ -189,6 +167,10 @@ class Population:
         self.mutation_rate = mutation_rate
         self.crossover_rate = crossover_rate
         self.debug = debug
+        self.simulator = Simulator(starting_location, delivery_parcels)
+        self.delivery_agents = delivery_agents
+        self.delivery_parcels = delivery_parcels
+        self.starting_location = starting_location
 
     def solution(self) -> Dict[DeliveryAgentInfo, Route]:
         if self.debug:
@@ -222,10 +204,10 @@ class Population:
         # Create a dictionary of the solution
         solution = {}
         # Create a mapping of the parcel id to the parcel
-        parcel_map = {parcel.id: parcel for parcel in winner.delivery_parcels}
+        parcel_map = {parcel.id: parcel for parcel in self.delivery_parcels}
 
         # Create a dictionary of agents and their routes
-        for agent_info, allocation in zip(winner.delivery_agents, winner.dna):
+        for agent_info, allocation in zip(self.delivery_agents, winner.dna):
             # Create a route from the allocation
             route: Route = Route([])
             for gene in allocation.genes:
@@ -245,33 +227,19 @@ class Population:
         # Get the population size
         pop_size = len(self.population)
 
-        # Create an array to store the information of the population that will be returned from the simulation
-        info = np.zeros((pop_size, 3))
+        allocations = [
+            {agent: gene.genes for agent, gene in zip(self.delivery_agents, p.dna)}
+            for p in self.population
+        ]
+
+        infos = np.array(self.simulator.simulate(allocations))
 
         # Calculate the maximum distance that the agents travelled
-        max_distance = 0
-        no_invalid_agents = 0
-
-        for i, dna in enumerate(self.population):
-            # Get the parcels and distance from the simulation when calculating the fitness
-            # TODO: Replace with zig simulator that just returns an array of arrays
-            # [[index, parcels, distance, invalid],.....n]
-            parcels, distance, invalid = dna.calculate_fitness()
-
-            # Track the number of agents that are invalid
-            no_invalid_agents += invalid
-
-            # Find the maximum distance that the agents travelled.
-            # The multiplication by 1.1 is used to ensure the when normalizing the distances no distance is equal to 1
-            max_distance = max(max_distance, distance * 1.1)
-
-            # Store the information of the population
-            # First column is the index of the dna in the population
-            info[i] = [i, parcels, distance]
+        max_distance = np.max(infos[:, 2]) * 1.1
 
         # Normalize the distance of the agents by the maximum distance
         if max_distance != 0:
-            info[:, 2] = info[:, 2] / max_distance
+            infos[:, 2] = infos[:, 2] / max_distance
 
         # Calculate the fitness of the population
         fitness = np.zeros((pop_size, 2))
@@ -280,7 +248,7 @@ class Population:
             # No of parcels is prioritized over distance therefore it is important that the distance cannot be equal to 1
             # This is achieved by multiplying the max_distance by 1.1 before normalizing
             # A small value is added to make sure that no instance is equal to 0
-            fitness[i] = [info[i, 0], info[i, 1] + info[i, 2] + 0.001]
+            fitness[i] = [infos[i, 0], infos[i, 1] + infos[i, 2] + 0.001]
 
         # Return the sorted fitness
         return fitness[fitness[:, 1].argsort()][::-1]

@@ -1,11 +1,11 @@
-from typing import List, Dict
+from typing import Dict
 import numpy as np
 import importlib
 import pkgutil
 
-from common import DeliveryAgentInfo, Id, Parcel, Route
+from common import DeliveryAgentInfo, Parcel, Route
 from node import Node, NodeOptions
-from simulate import Agent, Simulator
+from Simulator import Simulator
 import test_algos
 
 import cProfile
@@ -50,31 +50,36 @@ def create_agents(
     ]
 
 
-def print_info(agent: Agent, allocation: List[Id]):
-    print(f" Agent {agent.info.id} is Valid - {agent.is_valid}")
-    print(f" Agent Capacity: {agent.info.max_capacity}")
-    print(f" Agent Max Distance: {agent.info.max_dist}")
-    if agent.is_valid:
-        print(f" Agent is Carrying Parcels: {agent.parcels_delivered}")
-        print(f" Agent travel distance: {agent.dist_travelled}")
+def print_info(agent: DeliveryAgentInfo, allocation, results):
+    print(f" Agent {agent.id} is Valid - {results[0]}")
+    print(f" Agent Capacity: {agent.max_capacity}")
+    print(f" Agent Max Distance: {agent.max_dist}")
+    if results[0]:
+        print(f" Agent is Carrying Parcels: {results[1]}")
+        print(f" Agent travel distance: {results[2]}")
     print(f" Agent Allocation: {allocation}")
 
 
 def display_results(
-    node: Node, routes: Dict[DeliveryAgentInfo, Route], parcels: List[Parcel]
+    simulator: Simulator,
+    routes: Dict[DeliveryAgentInfo, Route],
 ):
     print(" Individual Agent Results:")
     print("-" * 79)
 
-    allocations = {agent: route.get_allocation() for agent, route in routes.items()}
-    simulator = Simulator(allocations, parcels, node)
-    total_parcels, total_distance, num_invalid_agents = simulator.simulate()
+    allocations = [{agent: route.get_allocation() for agent, route in routes.items()}]
 
-    for agent in simulator.agents[:-1]:
+    _, total_parcels, total_distance = simulator.simulate(allocations)[0]
+    num_invalid_agents = 0
+
+    agent_results = simulator.get_agent_results(0)
+    agents = list(routes.keys())
+    for results, agent in zip(agent_results, agents):
         # Display agent information
-        print_info(agent, routes[agent.info].get_allocation())
+        print_info(agent, routes[agent].get_allocation(), results)
         print()
-    print_info(simulator.agents[-1], routes[simulator.agents[-1].info].get_allocation())
+
+    print_info(agents[-1], routes[agents[-1]].get_allocation(), agent_results[-1])
 
     # Display total distance and parcels
     print("-" * 79)
@@ -94,12 +99,14 @@ if __name__ == "__main__":
     np.random.seed(0)
     parcels = create_parcels(no_of_nodes)
     agents = create_agents()
+    simulator = Simulator(root, parcels)
 
     print("=" * 79)
     print(" Test Data:")
     print("-" * 79)
     print(f" Parcels: {len(parcels)}")
     print(f" Agents: {len(agents)}")
+    print(f" Nodes: {no_of_nodes}")
 
     # Run all test algorithms in the folder test_algos
     for module_info in pkgutil.iter_modules(test_algos.__path__):  # type: ignore
@@ -128,5 +135,5 @@ if __name__ == "__main__":
         print("=" * 79)
         print(f" Results for {module_info.name}:")
         print("-" * 79)
-        display_results(root, routes, parcels)
+        display_results(simulator, routes)
         print()

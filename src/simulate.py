@@ -3,9 +3,53 @@ from typing import Dict, List, Tuple
 from common import DeliveryAgentInfo, Id, Parcel
 from node import Node
 
-import numpy as np
-
 SPEED = 1
+
+"""
+
+
+
+NOTE: DO NOT USE THIS FUNCTION
+import Simulator from Simulator
+Much Faster and Efficient
+
+```python
+from Simulator import Simulator
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""
 
 
 # Returns the route between two nodes
