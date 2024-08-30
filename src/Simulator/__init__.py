@@ -1,8 +1,19 @@
 import os
 import sys
 
+from typing import List, Dict
+from common import DeliveryAgentInfo, Parcel, Id
+from node import Node
+
 ran = False
-Simulator = None
+
+
+class Simulator:
+    def __init__(self, node: Node, all_parcels: List[Parcel]) -> None: ...
+    def set_parcels(self, parcels: List[Parcel]) -> None: ...
+    def simulate(
+        self, agent_allocations: List[Dict[DeliveryAgentInfo, List[Id]]]
+    ) -> None: ...
 
 
 def main():
