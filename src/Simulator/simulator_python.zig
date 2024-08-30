@@ -66,24 +66,24 @@ fn simulator_simulate(self: [*c]Simulator_Wrapper, args: PyObject) PyObject {
     }
 
     for (results.items, 0..) |result, i| {
-        const sub_list: PyObject = py.PyList_New(3);
-        if (sub_list == null) {
+        const tuple: PyObject = py.PyTuple_New(3);
+        if (tuple == null) {
             return py.PyErr_NoMemory();
         }
 
         const index = py.PyLong_FromLong(@intCast(i));
-        const distance = py.PyFloat_FromDouble(result.total_distance_travelled);
         const parcels = py.PyLong_FromLong(result.total_parcels_delivered);
+        const distance = py.PyFloat_FromDouble(result.total_distance_travelled);
 
         if (index == null or distance == null or parcels == null) {
             py.Py_DECREF(list);
-            py.Py_DECREF(sub_list);
+            py.Py_DECREF(tuple);
             return py.PyErr_NoMemory();
         }
-        _ = py.PyList_SetItem(sub_list, 0, index);
-        _ = py.PyList_SetItem(sub_list, 1, parcels);
-        _ = py.PyList_SetItem(sub_list, 2, distance);
-        _ = py.PyList_SetItem(list, @intCast(i), sub_list);
+        _ = py.PyTuple_SetItem(tuple, 0, index);
+        _ = py.PyTuple_SetItem(tuple, 1, parcels);
+        _ = py.PyTuple_SetItem(tuple, 2, distance);
+        _ = py.PyList_SetItem(list, @intCast(i), tuple);
     }
     return list;
 }
@@ -128,8 +128,8 @@ fn simulator_get_agent_results(self: [*c]Simulator_Wrapper, args: PyObject) PyOb
     }
 
     for (agents, 0..) |a, i| {
-        const sub_list: PyObject = py.PyList_New(3);
-        if (sub_list == null) {
+        const tuple: PyObject = py.PyTuple_New(3);
+        if (tuple == null) {
             return py.PyErr_NoMemory();
         }
 
@@ -139,13 +139,13 @@ fn simulator_get_agent_results(self: [*c]Simulator_Wrapper, args: PyObject) PyOb
 
         if (is_valid == null or distance == null or parcels == null) {
             py.Py_DECREF(list);
-            py.Py_DECREF(sub_list);
+            py.Py_DECREF(tuple);
             return py.PyErr_NoMemory();
         }
-        _ = py.PyList_SetItem(sub_list, 0, is_valid);
-        _ = py.PyList_SetItem(sub_list, 1, parcels);
-        _ = py.PyList_SetItem(sub_list, 2, distance);
-        _ = py.PyList_SetItem(list, @intCast(i), sub_list);
+        _ = py.PyTuple_SetItem(tuple, 0, is_valid);
+        _ = py.PyTuple_SetItem(tuple, 1, parcels);
+        _ = py.PyTuple_SetItem(tuple, 2, distance);
+        _ = py.PyList_SetItem(list, @intCast(i), tuple);
     }
     return list;
 }

@@ -125,6 +125,9 @@ if __name__ == "__main__":
                 )
             stats = pstats.Stats(pr)
             stats.strip_dirs()
+            import os
+
+            os.makedirs("profiling", exist_ok=True)
             stats.dump_stats(f"profiling/{module_info.name}-{time.time()}.prof")
         else:
             routes: Dict[DeliveryAgentInfo, Route] = submodule.model(
