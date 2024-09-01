@@ -74,7 +74,7 @@ def display_results(
 
     agent_results = simulator.get_agent_results(0)
     agents = list(routes.keys())
-    for results, agent in zip(agent_results, agents):
+    for results, agent in zip(agent_results[:-1], agents[:-1]):
         # Display agent information
         print_info(agent, routes[agent].get_allocation(), results)
         print()
