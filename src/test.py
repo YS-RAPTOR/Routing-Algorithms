@@ -1,11 +1,19 @@
-from typing import List, Mapping
+from typing import Dict
 import numpy as np
 import importlib
 import pkgutil
 
-from common import DeliveryAgent, Parcel, Route
-from graph import Graph, GraphOptions
+from common import DeliveryAgentInfo, Parcel, Route
+from node import Node, NodeOptions
+from Simulator import Simulator
 import test_algos
+
+import cProfile
+import pstats
+import time
+
+DEBUG = True
+CHECK_PERFORMANCE = False
 
 
 def create_parcels(
@@ -21,19 +29,19 @@ def create_parcels(
 
 
 def create_agents(
-    min_agents: int = 1,
-    max_agents: int = 3,
+    min_agents: int = 3,
+    max_agents: int = 5,
     min_capacity: int = 5,
     max_capacity: int = 10,
-    min_dist: float = 10,
-    max_dist: float = 20,
+    min_dist: float = 500,
+    max_dist: float = 5000,
 ):
     # Randomly generate number of agents
     no_agents = np.random.randint(min_agents, max_agents)
 
     # Randomly assign capacity and max distance to agents
     return [
-        DeliveryAgent(
+        DeliveryAgentInfo(
             i,
             np.random.randint(min_capacity, max_capacity),
             np.random.uniform(min_dist, max_dist),
@@ -42,79 +50,63 @@ def create_agents(
     ]
 
 
+def print_info(agent: DeliveryAgentInfo, allocation, results):
+    print(f" Agent {agent.id} is Valid - {results[0]}")
+    print(f" Agent Capacity: {agent.max_capacity}")
+    print(f" Agent Max Distance: {agent.max_dist}")
+    if results[0]:
+        print(f" Agent is Carrying Parcels: {results[1]}")
+        print(f" Agent travel distance: {results[2]}")
+    print(f" Agent Allocation: {allocation}")
+
+
 def display_results(
-    graph: Graph, routes: Mapping[DeliveryAgent, Route], parcels: List[Parcel]
+    simulator: Simulator,
+    routes: Dict[DeliveryAgentInfo, Route],
 ):
-    # Keep track of total distance and parcels
-    total_distance = 0
-    total_parcels = 0
+    print(" Individual Agent Results:")
+    print("-" * 79)
 
-    print("Individual Agent Results:")
-    for agent, route in routes.items():
+    allocations = [{agent: route.get_allocation() for agent, route in routes.items()}]
+
+    _, total_parcels, total_distance = simulator.simulate(allocations)[0]
+    num_invalid_agents = 0
+
+    agent_results = simulator.get_agent_results(0)
+    agents = list(routes.keys())
+    for results, agent in zip(agent_results[:-1], agents[:-1]):
         # Display agent information
-        print(f"Agent {agent.id}:")
-        print(f"Agent Capacity: {agent.max_capacity}")
-        print(f"Agent Max Distance: {agent.max_dist}")
+        print_info(agent, routes[agent].get_allocation(), results)
+        print()
 
-        parcels = route.get_parcels()
-        # Check if agent has exceeded capacity
-        if len(parcels) > agent.max_capacity:
-            raise Exception("Agent has exceeded capacity")
-
-        # Display parcels carried by agent
-        print(f"Agent is Carrying Parcels: {parcels}")
-        distance = 0
-
-        # Check if the route is valid
-        if route.locations[0] != 0:
-            raise Exception(f"Route for agent {agent.id} does not start at warehouse")
-        if route.locations[-1] != 0:
-            raise Exception(f"Route for agent {agent.id} does not end at warehouse")
-
-        current_node: Graph = graph
-        for loc, drop in zip(route.locations[1::], route.drops[1::]):
-            # Checks if the route is valid
-            travelling_to_node = current_node.find_immediate_from_id(loc)
-            if travelling_to_node is None:
-                raise Exception(f"Invalid route for agent {agent.id}")
-
-            # Calculate distance travelled between nodes
-            distance += np.sqrt(
-                (current_node.x - travelling_to_node.x) ** 2
-                + (current_node.y - travelling_to_node.y) ** 2
-            )
-
-            # Check if there is a drop
-            if drop != -1:
-                # Check if the drop is valid
-                if Parcel(drop, travelling_to_node.id) not in parcels:
-                    raise Exception(f"Agent {agent.id} has invalid drop")
-
-                # Increment parcels delivered
-                total_parcels += 1
-
-            # Move to next node
-            current_node = travelling_to_node
-
-        # Calculate distance travelled by agent
-        print(f"Agent travel distance: {distance}")
-        total_distance += distance
+    print_info(agents[-1], routes[agents[-1]].get_allocation(), agent_results[-1])
 
     # Display total distance and parcels
-    print()
-    print(f"Total Parcels Delivered: {total_parcels}")
-    print(f"Total Distance Travelled: {total_distance}")
+    print("-" * 79)
+    print(" Total Results:")
+    print("-" * 79)
+    print(f" Total Parcels Delivered: {total_parcels}")
+    print(f" Total Distance Travelled: {total_distance}")
+    print(f" Number of Invalid Agents: {num_invalid_agents}")
 
 
 if __name__ == "__main__":
     # Create graph
-    graph = Graph(None, 0, 0, (0, 0, 0), 0)
-    no_of_nodes = graph.create(GraphOptions())
+    root = Node(0, 0, (0, 0, 0), 0)
+    no_of_nodes = root.create(NodeOptions())
 
     # Create parcels and agents
     np.random.seed(0)
     parcels = create_parcels(no_of_nodes)
     agents = create_agents()
+    simulator = Simulator(root, parcels)
+
+    print("=" * 79)
+    print(" Test Data:")
+    print("-" * 79)
+    print(f" Parcels: {len(parcels)}")
+    print(f" Agents: {len(agents)}")
+    print(f" Nodes: {no_of_nodes}")
 
     # Run all test algorithms in the folder test_algos
     for module_info in pkgutil.iter_modules(test_algos.__path__):  # type: ignore
@@ -122,13 +114,29 @@ if __name__ == "__main__":
 
         # Check if the module has a model function
         if not hasattr(submodule, "model"):
-            print(f"Module {module_info.name} does not have a model function")
+            print(f" Module {module_info.name} does not have a model function")
             continue
 
         # Run the model function
-        routes: Mapping[DeliveryAgent, Route] = submodule.model(graph, parcels, agents)
+        if CHECK_PERFORMANCE:
+            with cProfile.Profile() as pr:
+                routes: Dict[DeliveryAgentInfo, Route] = submodule.model(
+                    root, parcels, agents, DEBUG
+                )
+            stats = pstats.Stats(pr)
+            stats.strip_dirs()
+            import os
+
+            os.makedirs("profiling", exist_ok=True)
+            stats.dump_stats(f"profiling/{module_info.name}-{time.time()}.prof")
+        else:
+            routes: Dict[DeliveryAgentInfo, Route] = submodule.model(
+                root, parcels, agents, DEBUG
+            )
 
         # Display results
-        print(f"Results for {module_info.name}:")
-        display_results(graph, routes, parcels)
+        print("=" * 79)
+        print(f" Results for {module_info.name}:")
+        print("-" * 79)
+        display_results(simulator, routes)
         print()

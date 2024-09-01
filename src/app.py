@@ -1,20 +1,20 @@
-from typing import Tuple
+from typing import Set, Tuple
 import numpy as np
 import pygame
 
-from graph import Graph, GraphOptions
+from node import Node, NodeOptions
 
 
-class DrawGraph:
+class DrawNode:
     def __init__(
         self,
-        graph: Graph,
+        node: Node,
         offset: Tuple[float, float],
         zoom: float | None,
         node_radius: int,
         line_width: int,
     ):
-        self.graph = graph
+        self.node = node
         self.offset = offset
         self.zoom = zoom
         self.node_radius = node_radius
@@ -22,60 +22,64 @@ class DrawGraph:
 
     def zoom_to_fit(self, display_region: Tuple[int, int]) -> float:
         width, height = display_region
-        x_scale = width / (self.graph.bbox[2] - self.graph.bbox[0])  # type: ignore
-        y_scale = height / (self.graph.bbox[3] - self.graph.bbox[1])  # type: ignore
+        x_scale = width / (self.node.bbox[2] - self.node.bbox[0])  # type: ignore
+        y_scale = height / (self.node.bbox[3] - self.node.bbox[1])  # type: ignore
         return min(x_scale, y_scale)
 
-    def draw(
+    def __draw(
         self,
-        graph: Graph,
+        node: Node,
         surface: pygame.Surface,
         offset: Tuple[int, int],
         zoom: float,
+        visited: Set[Node],
     ):
-        for child in graph.children:
+        visited.add(node)
+        for neighbour in node.neighbours:
             pygame.draw.aaline(
                 surface,
-                child.color,
-                (int(graph.x * zoom + offset[0]), int(graph.y * zoom + offset[1])),
-                (int(child.x * zoom + offset[0]), int(child.y * zoom + offset[1])),
+                neighbour.color,
+                (int(node.x * zoom + offset[0]), int(node.y * zoom + offset[1])),
+                (
+                    int(neighbour.x * zoom + offset[0]),
+                    int(neighbour.y * zoom + offset[1]),
+                ),
                 max(self.line_width, int(zoom * self.line_width)),
             )
-            self.draw(child, surface, offset, zoom)
-            pygame.draw.circle(
-                surface,
-                child.color,
-                (int(child.x * zoom + offset[0]), int(child.y * zoom + offset[1])),
-                max(self.node_radius, int(zoom * self.node_radius)),
-            )
+            if neighbour in visited:
+                continue
+
+            self.__draw(neighbour, surface, offset, zoom, visited)
         pygame.draw.circle(
             surface,
-            graph.color,
-            (int(graph.x * zoom + offset[0]), int(graph.y * zoom + offset[1])),
+            node.color,
+            (int(node.x * zoom + offset[0]), int(node.y * zoom + offset[1])),
             max(self.node_radius, int(zoom * self.node_radius)),
         )
 
-    def update(self, display_region: Tuple[int, int]):
+    def draw(self, display_region: Tuple[int, int]):
         zoom = self.zoom_to_fit(display_region) if self.zoom is None else self.zoom
         zoom *= 0.92 - (0.01 * self.node_radius)
+
         self.surface = pygame.Surface(display_region)
         self.surface.fill((255, 255, 255))
-        self.draw(
-            self.graph,
+        self.__draw(
+            self.node,
             self.surface,
             (int(self.offset[0]), int(self.offset[1])),
             zoom,
+            set(),
         )
 
 
 class App:
     def __init__(
         self,
-        window_name: str = "Graph",
+        window_name: str = "node",
         window_size: Tuple[int, int] = (800, 800),
         fps: int = 60,
         scroll_speed: float = 1.1,
-        node_radius: int = 5,
+        node_radius: int = 3,
         line_width: int = 2,
     ):
         # Initializes the app with the given parameters
@@ -84,19 +88,18 @@ class App:
         self.fps = fps
         self.scroll_speed = scroll_speed
 
-        # NOTE: Creates Graph
-        graph = Graph(None, 0, 0, (0, 0, 0), 0)
-        print(f"No of Nodes Created: {graph.create(GraphOptions())}")
+        # NOTE: Creates node
+        root = Node(0, 0, (0, 0, 0), 0)
+        print(f" No of Nodes Created: {root.create(NodeOptions())}")
 
         # NOTE: App Initialization
-        self.draw_graph = DrawGraph(
-            graph,
+        self.draw_node = DrawNode(
+            root,
             tuple(np.array(self.window_size) // 2),
             None,
             node_radius,
             line_width,
         )
-        self.draw_graph.update(self.window_size)
 
         pygame.init()
         self.screen = pygame.display.set_mode(self.window_size)
@@ -126,11 +129,11 @@ class App:
                         self.running = False
                         break
 
-                    # If the key pressed is R, then the graph will be reset to fit the window and
+                    # If the key pressed is R, then the node will be reset to fit the window and
                     # offset will be set to the center
                     if event.key == pygame.K_r:
-                        self.draw_graph.zoom = None
-                        self.draw_graph.offset = tuple(np.array(self.window_size) // 2)
+                        self.draw_node.zoom = None
+                        self.draw_node.offset = tuple(np.array(self.window_size) // 2)
 
                 # Handles the event when the window is resized
                 if event.type == pygame.VIDEORESIZE:
@@ -139,26 +142,27 @@ class App:
                 # Handles the event when the mouse wheel is scrolled
                 if event.type == pygame.MOUSEWHEEL:
                     # If the zoom is not set, then it will be set to fit the window
-                    if self.draw_graph.zoom is None:
-                        self.draw_graph.zoom = self.draw_graph.zoom_to_fit(
+                    if self.draw_node.zoom is None:
+                        self.draw_node.zoom = self.draw_node.zoom_to_fit(
                             self.window_size
                         )
 
                     # Stores the old zoom value to calculate offset
-                    old_zoom = self.draw_graph.zoom
+                    old_zoom = self.draw_node.zoom
 
                     # Zoom in or out based on the scroll direction and the scroll speed
                     if event.y > 0:
-                        self.draw_graph.zoom *= self.scroll_speed
+                        self.draw_node.zoom *= self.scroll_speed
                     elif event.y < 0:
-                        self.draw_graph.zoom /= self.scroll_speed
+                        self.draw_node.zoom /= self.scroll_speed
 
-                    zoom = self.draw_graph.zoom
+                    # Clamp the zoom value to a certain range
+                    zoom = self.draw_node.zoom
 
                     # Calculates the offset based on the zoom value and the mouse position
                     mouse_pos = np.array(pygame.mouse.get_pos())
-                    offset = np.array(self.draw_graph.offset)
-                    self.draw_graph.offset = tuple(
+                    offset = np.array(self.draw_node.offset)
+                    self.draw_node.offset = tuple(
                         mouse_pos - (mouse_pos - offset) * (zoom / old_zoom)
                     )
                 # When the left mouse button is pressed, dragging starts
@@ -167,7 +171,7 @@ class App:
                         if not self.is_dragging:
                             # Stores the initial mouse position and the offset
                             self.initial_mouse_pos = np.array(pygame.mouse.get_pos())
-                            self.initial_offset = self.draw_graph.offset
+                            self.initial_offset = self.draw_node.offset
                             self.is_dragging = True
 
                 # When the left mouse button is released, dragging stops
@@ -175,19 +179,19 @@ class App:
                     if event.button == 1:
                         self.is_dragging = False
 
-            # Moves the graph based on whether the ueser is currently dragging
+            # Moves the node based on whether the ueser is currently dragging
             if self.is_dragging:
                 self.mouse_pos = np.array(pygame.mouse.get_pos())
-                self.draw_graph.offset = tuple(
+                self.draw_node.offset = tuple(
                     self.initial_offset + self.mouse_pos - self.initial_mouse_pos
                 )
 
-            # Updates the graph
-            self.draw_graph.update(self.window_size)
+            # Updates the node
+            self.draw_node.draw(self.window_size)
 
-            # Draw the updated graph
+            # Draw the updated node
             self.screen.fill((255, 255, 255))
-            self.screen.blit(self.draw_graph.surface, (0, 0))
+            self.screen.blit(self.draw_node.surface, (0, 0))
             pygame.display.flip()
 
             # Limits the frame rate to the specified fps
