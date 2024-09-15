@@ -1,206 +1,157 @@
-from typing import Set, Tuple
+from dataclasses import dataclass
+from enum import Enum
+from typing_extensions import Tuple
 import numpy as np
 import pygame
 
-from node import Node, NodeOptions
+
+class TextOrientation(Enum):
+    LEFT = 0
+    CENTER = 1
+    RIGHT = 2
 
 
-class DrawNode:
+class Button:
     def __init__(
         self,
-        node: Node,
-        offset: Tuple[float, float],
-        zoom: float | None,
-        node_radius: int,
-        line_width: int,
-    ):
-        self.node = node
-        self.offset = offset
-        self.zoom = zoom
-        self.node_radius = node_radius
-        self.line_width = line_width
+        size: Tuple[int, int],
+        text: str,
+        font_size: int,
+        text_orientation: TextOrientation,
+        foreground_color: Tuple[int, int, int],
+        background_color: Tuple[int, int, int],
+        hover_color: Tuple[int, int, int],
+    ) -> None:
+        self.size = size
+        self.text = text
+        self.font_size = font_size
+        self.text_orientation = text_orientation
+        self.foreground_color = foreground_color
+        self.background_color = background_color
+        self.hover_color = hover_color
 
-    def zoom_to_fit(self, display_region: Tuple[int, int]) -> float:
-        width, height = display_region
-        x_scale = width / (self.node.bbox[2] - self.node.bbox[0])  # type: ignore
-        y_scale = height / (self.node.bbox[3] - self.node.bbox[1])  # type: ignore
-        return min(x_scale, y_scale)
+        self.bg = self.background_color
 
-    def __draw(
+
+class TextField:
+    pass
+
+
+# TODO: Parcel Options Sidebar
+# Change Parcel Information (Id cannot be changed, Location picked from map. Id always starting from zero to num_of_agents)
+# Reroll Parcel Information
+# Add and Remove Parcels
+# On Hover Highlight location
+class ParcelManager:
+    pass
+
+
+# TODO: Agent Options Sidebar
+# Change Agent Information (Id cannot be changed, others can. Id always starting from zero to num_of_agents)
+# Reroll Agent Information
+# Add and Remove Agents
+class AgentManager:
+    pass
+
+
+# TODO: Map Options Sidebar
+# Change Map Settings and Recreate Map. Map Recreation always rerolls invalid parcels
+# TODO: Render Map
+class MapManager:
+    def __init__(
         self,
-        node: Node,
-        surface: pygame.Surface,
-        offset: Tuple[int, int],
-        zoom: float,
-        visited: Set[Node],
+        min_node_radius: int,
+        min_line_width: int,
     ):
-        visited.add(node)
-        for neighbour in node.neighbours:
-            pygame.draw.aaline(
-                surface,
-                neighbour.color,
-                (int(node.x * zoom + offset[0]), int(node.y * zoom + offset[1])),
-                (
-                    int(neighbour.x * zoom + offset[0]),
-                    int(neighbour.y * zoom + offset[1]),
-                ),
-                max(self.line_width, int(zoom * self.line_width)),
-            )
-            if neighbour in visited:
-                continue
+        self.min_node_radius = min_node_radius
+        self.min_line_width = min_line_width
+        self.sidebar_active = False
 
-            self.__draw(neighbour, surface, offset, zoom, visited)
-        pygame.draw.circle(
-            surface,
-            node.color,
-            (int(node.x * zoom + offset[0]), int(node.y * zoom + offset[1])),
-            max(self.node_radius, int(zoom * self.node_radius)),
-        )
+    def update(self):
+        pass
 
-    def draw(self, display_region: Tuple[int, int]):
-        zoom = self.zoom_to_fit(display_region) if self.zoom is None else self.zoom
-        zoom *= 0.92 - (0.01 * self.node_radius)
+    def render(self):
+        pass
 
-        self.surface = pygame.Surface(display_region)
-        self.surface.fill((255, 255, 255))
-        self.__draw(
-            self.node,
-            self.surface,
-            (int(self.offset[0]), int(self.offset[1])),
-            zoom,
-            set(),
-        )
+    def activate_sidebar(self):
+        self.sidebar_active = True
 
 
+# TODO:
+# Render Parcels in Warehouse in the sidebar (On hover highlight agent/warehouse. Removed when delivered)
+# Stop button at bottom of sidebar
+# Render All Agents and the parcels carried by them
+class SimulationManager:
+    pass
+
+
+# TODO: Main Sidebar
+# Map button
+# Parcels button
+# Agents Button
+# Run Button
 class App:
+    @dataclass
+    class MouseInfo:
+        mouse_pos: np.ndarray = np.zeros(2)
+        initial_mouse_pos: np.ndarray = np.zeros(2)
+        offset_from_initial: np.ndarray = np.zeros(2)
+        is_dragging: bool = False
+
     def __init__(
         self,
         window_name: str = "node",
         window_size: Tuple[int, int] = (800, 800),
-        fps: int = 60,
+        target_fps: int = 60,
         scroll_speed: float = 1.1,
-        node_radius: int = 3,
-        line_width: int = 2,
+        min_node_radius: int = 3,
+        min_line_width: int = 2,
+        sidebar_width: int = 200,
     ):
         # Initializes the app with the given parameters
-        self.window_name = window_name
-        self.window_size = window_size
-        self.fps = fps
+        self.running = True
         self.scroll_speed = scroll_speed
+        self.target_fps = target_fps
+        self.delta_time = 1 / target_fps
 
-        # NOTE: Creates node
-        root = Node(0, 0, (0, 0, 0), 0)
-        print(f" No of Nodes Created: {root.create(NodeOptions())}")
+        # Initialize Managers
+        self.mouse_info = self.MouseInfo()
+        self.map_manager = MapManager(min_node_radius, min_line_width)
 
-        # NOTE: App Initialization
-        self.draw_node = DrawNode(
-            root,
-            tuple(np.array(self.window_size) // 2),
-            None,
-            node_radius,
-            line_width,
-        )
+        # Initialize surfaces
+        self.sidebar = pygame.Surface((sidebar_width, window_size[1]))
+        self.canvas = pygame.Surface((window_size[0] - sidebar_width, window_size[1]))
 
+        # Initialize Pygame
         pygame.init()
-        self.screen = pygame.display.set_mode(self.window_size)
-        pygame.display.set_caption(self.window_name)
-
+        self.screen = pygame.display.set_mode(window_size)
+        pygame.display.set_caption(window_name)
         self.clock = pygame.time.Clock()
 
-        self.running = True
-        self.delta = 1 / self.fps
+    def __update(self):
+        # TODO: Capture input
+        # TODO: Zoom in/out
+        # TODO: Capture Button Clicks and Keyboard Input
+        # TODO: Move Agents
+        self.sidebar.fill((255, 0, 255))
+        self.canvas.fill((255, 0, 0))
 
-        self.initial_mouse_pos = np.zeros(2)
-        self.initial_offset = (0, 0)
-        self.is_dragging = False
+    def __render(self):
+        # TODO: Render Map
+        # TODO: Render Agents
+        # TODO: Render Options
+
+        self.screen.fill((255, 255, 255))
+        self.screen.blit(self.canvas, (0, 0))
+        self.screen.blit(self.sidebar, (self.canvas.get_width(), 0))
 
     def run(self):
         while self.running:
-            # Handles events
-            for event in pygame.event.get():
-                # Handles the quit event when the window is closed
-                if event.type == pygame.QUIT:
-                    self.running = False
-
-                # Handles any event when a key is pressed
-                if event.type == pygame.KEYDOWN:
-                    # If the key pressed is ESC or Q, then the app will close
-                    if event.key == pygame.K_ESCAPE or event.key == pygame.K_q:
-                        self.running = False
-                        break
-
-                    # If the key pressed is R, then the node will be reset to fit the window and
-                    # offset will be set to the center
-                    if event.key == pygame.K_r:
-                        self.draw_node.zoom = None
-                        self.draw_node.offset = tuple(np.array(self.window_size) // 2)
-
-                # Handles the event when the window is resized
-                if event.type == pygame.VIDEORESIZE:
-                    self.window_size = event.size
-
-                # Handles the event when the mouse wheel is scrolled
-                if event.type == pygame.MOUSEWHEEL:
-                    # If the zoom is not set, then it will be set to fit the window
-                    if self.draw_node.zoom is None:
-                        self.draw_node.zoom = self.draw_node.zoom_to_fit(
-                            self.window_size
-                        )
-
-                    # Stores the old zoom value to calculate offset
-                    old_zoom = self.draw_node.zoom
-
-                    # Zoom in or out based on the scroll direction and the scroll speed
-                    if event.y > 0:
-                        self.draw_node.zoom *= self.scroll_speed
-                    elif event.y < 0:
-                        self.draw_node.zoom /= self.scroll_speed
-
-                    # Clamp the zoom value to a certain range
-                    zoom = self.draw_node.zoom
-
-                    # Calculates the offset based on the zoom value and the mouse position
-                    mouse_pos = np.array(pygame.mouse.get_pos())
-                    offset = np.array(self.draw_node.offset)
-                    self.draw_node.offset = tuple(
-                        mouse_pos - (mouse_pos - offset) * (zoom / old_zoom)
-                    )
-                # When the left mouse button is pressed, dragging starts
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    if event.button == 1:
-                        if not self.is_dragging:
-                            # Stores the initial mouse position and the offset
-                            self.initial_mouse_pos = np.array(pygame.mouse.get_pos())
-                            self.initial_offset = self.draw_node.offset
-                            self.is_dragging = True
-
-                # When the left mouse button is released, dragging stops
-                if event.type == pygame.MOUSEBUTTONUP:
-                    if event.button == 1:
-                        self.is_dragging = False
-
-            # Moves the node based on whether the ueser is currently dragging
-            if self.is_dragging:
-                self.mouse_pos = np.array(pygame.mouse.get_pos())
-                self.draw_node.offset = tuple(
-                    self.initial_offset + self.mouse_pos - self.initial_mouse_pos
-                )
-
-            # Updates the node
-            self.draw_node.draw(self.window_size)
-
-            # Draw the updated node
-            self.screen.fill((255, 255, 255))
-            self.screen.blit(self.draw_node.surface, (0, 0))
+            self.__update()
+            self.__render()
             pygame.display.flip()
-
-            # Limits the frame rate to the specified fps
-            self.clock.tick(self.fps)
-
-        # Quits the pygame when the app is closed
-        pygame.quit()
+            self.clock.tick(self.target_fps)
 
 
 if __name__ == "__main__":
-    app = App()
-    app.run()
+    App().run()

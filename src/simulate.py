@@ -7,8 +7,6 @@ SPEED = 1
 
 """
 
-
-
 NOTE: DO NOT USE THIS FUNCTION
 import Simulator from Simulator
 Much Faster and Efficient
@@ -16,37 +14,6 @@ Much Faster and Efficient
 ```python
 from Simulator import Simulator
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 """
