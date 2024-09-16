@@ -1,35 +1,76 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import {
+    ResizableHandle,
+    ResizablePanel,
+    ResizablePanelGroup,
+} from "@/components/ui/resizable";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-function App() {
-  const [count, setCount] = useState(0)
+const App = () => {
+    return (
+        <ResizablePanelGroup
+            direction="horizontal"
+            className="w-dvh flex h-dvh rounded-lg border "
+        >
+            <ResizablePanel defaultSize={75} className="h-dvh">
+                <Canvas />
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel
+                maxSize={50}
+                minSize={15}
+                defaultSize={25}
+                className="h-dvh"
+            >
+                <Sidebar />
+            </ResizablePanel>
+        </ResizablePanelGroup>
+    );
+};
 
-  return (
-    <>
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+const Canvas = () => {
+    return <div className="w-full h-full bg-red-100">Canvas</div>;
+};
 
-export default App
+const Sidebar = () => {
+    return (
+        <Tabs defaultValue="map" className="p-2 w-full">
+            <TabsList className="w-full">
+                <TabsTrigger className="w-full" value="map">
+                    Map
+                </TabsTrigger>
+                <TabsTrigger className="w-full" value="parcels">
+                    Parcels
+                </TabsTrigger>
+                <TabsTrigger className="w-full" value="agents">
+                    Agents
+                </TabsTrigger>
+            </TabsList>
+            <TabsContent value="map">
+                <MapSettings />
+            </TabsContent>
+            <TabsContent value="parcels">
+                <ParcelsSettings />
+            </TabsContent>
+            <TabsContent value="agents">
+                <AgentsSettings />
+            </TabsContent>
+        </Tabs>
+    );
+};
+
+// Ayush
+const MapSettings = () => {
+    return <div>Map Settings</div>;
+};
+
+// Winston
+const ParcelsSettings = () => {
+    return <div>Parcels Settings</div>;
+};
+
+// Franklin
+const AgentsSettings = () => {
+    return <div>Agents Settings</div>;
+};
+
+export default App;
