@@ -11,6 +11,13 @@ no_of_nodes: int | None = None
 app = FastAPI()
 
 
+def serialize(node: Node):
+    all_nodes = list(node.get_all_nodes(set()))
+    for node in all_nodes:
+        node.neighbours = [n.id for n in node.neighbours]  # type: ignore
+    return all_nodes
+
+
 # TODO: Parcel Options Sidebar
 # Change Parcel Information (Id cannot be changed, Location picked from map. Id always starting from zero to num_of_agents)
 # Reroll Parcel Information
@@ -20,19 +27,21 @@ app = FastAPI()
 
 @app.get("/parcels")
 def get_parcels():
+    global user_parcels
     return user_parcels
 
 
 @app.post("/parcels")
 def reroll_parcels(
+    seed: int = 0,
     min_parcels: int = 20,
     max_parcels: int = 50,
 ):
+    global user_parcels, no_of_nodes
     if no_of_nodes is None:
         raise HTTPException(400, detail="Initialize Map First")
 
-    global user_parcels
-    user_parcels = create_parcels(no_of_nodes, min_parcels, max_parcels)
+    user_parcels = create_parcels(no_of_nodes, seed, min_parcels, max_parcels)
     return user_parcels
 
 
@@ -56,6 +65,7 @@ def get_agents():
 
 @app.post("/agents")
 def reroll_agents(
+    seed: int = 0,
     min_agents: int = 3,
     max_agents: int = 5,
     min_capacity: int = 5,
@@ -65,6 +75,7 @@ def reroll_agents(
 ):
     global user_agents
     user_agents = create_agents(
+        seed,
         min_agents,
         max_agents,
         min_capacity,
@@ -96,7 +107,7 @@ def get_map():
     if root_node is None or no_of_nodes is None:
         raise HTTPException(400, detail="Initialize Map First")
 
-    return no_of_nodes, list(root_node.get_all_nodes(set()))
+    return {"no_of_nodes": no_of_nodes, "nodes": serialize(root_node)}
 
 
 @app.post("/map")
@@ -134,7 +145,7 @@ def create_map(
             return_angle_range=return_angle_range,
         )
     )
-    return no_of_nodes, list(root_node.get_all_nodes(set()))
+    return {"no_of_nodes": no_of_nodes, "nodes": serialize(root_node)}
 
 
 # TODO:

@@ -39,9 +39,11 @@ class Route:
 
 def create_parcels(
     no_of_nodes: int,
+    seed: int = 0,
     min_parcels: int = 20,
     max_parcels: int = 50,
 ):
+    np.random.seed(seed)
     # Randomly generate number of parcels
     no_of_parcels = np.random.randint(min_parcels, max_parcels)
 
@@ -50,6 +52,7 @@ def create_parcels(
 
 
 def create_agents(
+    seed: int = 0,
     min_agents: int = 3,
     max_agents: int = 5,
     min_capacity: int = 5,
@@ -57,6 +60,7 @@ def create_agents(
     min_dist: float = 500,
     max_dist: float = 5000,
 ):
+    np.random.seed(seed)
     # Randomly generate number of agents
     no_agents = np.random.randint(min_agents, max_agents)
 
