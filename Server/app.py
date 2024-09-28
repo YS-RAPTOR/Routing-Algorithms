@@ -1,5 +1,6 @@
 from typing import List
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from common import DeliveryAgentInfo, Parcel, create_agents, create_parcels
 from node import Node, NodeOptions
 
@@ -9,6 +10,14 @@ root_node: None | Node = None
 no_of_nodes: int | None = None
 
 app = FastAPI()
+origins = ["*"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def serialize(node: Node):
@@ -60,6 +69,7 @@ def update_parcel(parcels: List[Parcel]):
 
 @app.get("/agents")
 def get_agents():
+    global user_agents
     return user_agents
 
 
@@ -167,11 +177,14 @@ def simulate():
     elif len(user_parcels) == 0:
         raise HTTPException(400, detail="Initialize User Parcels First")
     else:
-        return test_algos.GA.model(root_node, user_parcels, user_agents)
+        return test_algos.GA.model(
+            root_node,
+            user_parcels,
+            user_agents,
+        )
 
 
-# TODO: Main Sidebar
-# Map button
-# Parcels button
-# Agents Button
-# Run Button
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)

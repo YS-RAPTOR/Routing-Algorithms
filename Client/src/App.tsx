@@ -4,22 +4,27 @@ import {
     ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import { Canvas } from "@/Canvas";
 import * as api from "./lib/api";
-import { useQuery } from "@tanstack/react-query";
 
 const App = () => {
     const [simulating, setSimulating] = useState(false);
-    const SimulateQuery = useQuery({
-        queryKey: ["simulate"],
-        queryFn: () => api.simulate(simulating),
-    });
+    useEffect(() => {
+        const handleNodeClick = (e: Event) => {
+            console.log(e);
+        };
+
+        document.addEventListener("onClickNode", handleNodeClick);
+        return () => {
+            document.removeEventListener("onClickNode", handleNodeClick);
+        };
+    }, []);
 
     return (
         <ResizablePanelGroup
             direction="horizontal"
-            className="w-dvh flex h-dvh rounded-lg border "
+            className="w-dvh flex h-dvh rounded-lg"
         >
             <ResizablePanel defaultSize={75} className="h-dvh">
                 <Canvas simulating={simulating} setSimulating={setSimulating} />
@@ -36,26 +41,6 @@ const App = () => {
                 </ResizablePanel>
             </>
         </ResizablePanelGroup>
-    );
-};
-
-const Canvas = (props: {
-    simulating: boolean;
-    setSimulating: (value: boolean) => void;
-}) => {
-    return (
-        <div className="w-full h-full relative">
-            <Button
-                className="absolute left-1/2 bottom-14 -translate-x-1/2 z-10"
-                variant={props.simulating ? "destructive" : "default"}
-                onClick={() => {
-                    props.setSimulating(!props.simulating);
-                }}
-            >
-                {props.simulating ? "Stop Simulation" : "Run Simulation"}
-            </Button>
-            <canvas className=""></canvas>
-        </div>
     );
 };
 

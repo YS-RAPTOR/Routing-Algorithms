@@ -3,20 +3,42 @@ export class Node {
     x: number;
     y: number;
     color: string;
-    neighbours: number[];
+    highlighted: boolean = false;
 
-    constructor(
-        id: number,
-        x: number,
-        y: number,
-        color: string,
-        neighbours: number[],
-    ) {
+    constructor(id: number, x: number, y: number, color: string) {
         this.id = id;
         this.x = x;
         this.y = y;
         this.color = color;
-        this.neighbours = neighbours;
+    }
+}
+
+export class Relationship {
+    small: number;
+    large: number;
+    highlighted: boolean = false;
+
+    constructor(first: number, second: number) {
+        if (first < second) {
+            this.small = first;
+            this.large = second;
+        } else {
+            this.small = second;
+            this.large = first;
+        }
+    }
+
+    equals(other: Relationship) {
+        return this.small === other.small && this.large === other.large;
+    }
+
+    arrayHas(arr: Relationship[]): boolean {
+        for (let i = 0; i < arr.length; i++) {
+            if (this.equals(arr[i])) {
+                return true;
+            }
+        }
+        return false;
     }
 }
 
@@ -33,6 +55,7 @@ export const CreateNodeArray = (
     ],
 ) => {
     const nodeArray: Node[] = Array(numNodes);
+    const relationships: Relationship[] = [];
 
     for (let i = 0; i < numNodes; i++) {
         var colorStr = "#";
@@ -46,8 +69,17 @@ export const CreateNodeArray = (
             nodes[i].x,
             nodes[i].y,
             colorStr,
-            nodes[i].neighbours,
         );
+
+        for (let j = 0; j < nodes[i].neighbours.length; j++) {
+            const relationship = new Relationship(
+                nodes[i].id,
+                nodes[i].neighbours[j],
+            );
+            if (!relationship.arrayHas(relationships)) {
+                relationships.push(relationship);
+            }
+        }
     }
-    return nodeArray;
+    return { nodeArray, relationships };
 };
