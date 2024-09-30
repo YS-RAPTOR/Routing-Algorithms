@@ -3,7 +3,6 @@ export class Node {
     x: number;
     y: number;
     color: string;
-    highlighted: boolean = false;
 
     constructor(id: number, x: number, y: number, color: string) {
         this.id = id;
@@ -16,7 +15,6 @@ export class Node {
 export class Relationship {
     small: number;
     large: number;
-    highlighted: boolean = false;
 
     constructor(first: number, second: number) {
         if (first < second) {

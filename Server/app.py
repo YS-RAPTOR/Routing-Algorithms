@@ -1,8 +1,11 @@
 from typing import List
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from common import DeliveryAgentInfo, Parcel, create_agents, create_parcels
+from Server.simulate import get_route
+from common import DeliveryAgentInfo, Parcel, Route, create_agents, create_parcels
 from node import Node, NodeOptions
+import logging
+import uvicorn
 
 user_parcels: List[Parcel] = []
 user_agents: List[DeliveryAgentInfo] = []
@@ -10,6 +13,8 @@ root_node: None | Node = None
 no_of_nodes: int | None = None
 
 app = FastAPI()
+logger = logging.getLogger("uvicorn")
+
 origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
@@ -21,10 +26,13 @@ app.add_middleware(
 
 
 def serialize(node: Node):
-    all_nodes = list(node.get_all_nodes(set()))
+    all_nodes = node.get_all_nodes(set())
+    nodes = []
     for node in all_nodes:
-        node.neighbours = [n.id for n in node.neighbours]  # type: ignore
-    return all_nodes
+        n = Node(node.x, node.y, node.color, node.id)
+        n.neighbours = [n.id for n in node.neighbours]  # type: ignore
+        nodes.append(n)
+    return nodes
 
 
 # TODO: Parcel Options Sidebar
@@ -164,8 +172,47 @@ def create_map(
 # Render All Agents and the parcels carried by them
 
 
+def sanitize_route(ro: List[Parcel | None]):
+    route = [ro[0]]
+
+    for r in ro[1:]:
+        if r is None and route[-1] is None:
+            continue
+
+        route.append(r)
+
+    return route
+
+
+def sanitize_path(ro: List[int]):
+    path = [ro[0]]
+    for r in ro[1:]:
+        if r == path[-1]:
+            continue
+        path.append(r)
+    return path
+
+
+def get_path(ro: List[Parcel | None]):
+    global root_node
+    path = []
+    if root_node is None:
+        raise HTTPException(400, detail="Initialize Map First")
+    node = root_node
+
+    for r in ro:
+        if r is None:
+            continue
+        p, node = get_route(node, r.location)
+        p.reverse()
+        path.extend(p)
+
+    return sanitize_path(path)
+
+
 @app.get("/simulate")
 def simulate():
+    logger.info("Simulating")
     import test_algos.GA
 
     global user_agents, user_parcels, root_node
@@ -177,14 +224,16 @@ def simulate():
     elif len(user_parcels) == 0:
         raise HTTPException(400, detail="Initialize User Parcels First")
     else:
-        return test_algos.GA.model(
+        route = test_algos.GA.model(
             root_node,
             user_parcels,
             user_agents,
         )
+        return [
+            {"agent": a, "route": sanitize_route(r.route), "path": get_path(r.route)}
+            for a, r in route.items()
+        ]
 
 
 if __name__ == "__main__":
-    import uvicorn
-
     uvicorn.run(app, host="0.0.0.0", port=8000)

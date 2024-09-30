@@ -4,11 +4,11 @@ import { create } from "zustand";
 
 // Stores for all the state
 // 5 stores: nodes, unique_relationships, parcels, agents, routes, highlighted color/None
-type Parcel = {
+export type Parcel = {
     id: number;
     location: number;
 };
-type Agent = {
+export type Agent = {
     id: number;
     max_capacity: number;
     max_dist: number;
@@ -20,12 +20,38 @@ type Store = {
         nodes: Node[],
         relationships: Relationship[],
     ) => void;
-    highlight_color: string | null;
-    updateHighlightColor: (color: string | null) => void;
+    highlights: {
+        relationship: Relationship[];
+        nodes: Set<number>;
+        agent_id: number;
+    } | null;
+    updateHighlights: (
+        highlights: {
+            relationship: Relationship[];
+            nodes: Set<number>;
+            agent_id: number;
+        } | null,
+    ) => void;
 
     isLoading: boolean;
-    routes: Map<number, number[]> | null;
-    updateRoutes: (routes: Map<number, number[]> | null) => void;
+    routes:
+        | {
+              agent: Agent;
+              route: (Parcel | null)[];
+              color: string;
+              path: number[];
+          }[]
+        | null;
+    updateRoutes: (
+        routes:
+            | {
+                  agent: Agent;
+                  route: (Parcel | null)[];
+                  color: string;
+                  path: number[];
+              }[]
+            | null,
+    ) => void;
     updateIsLoading: (isLoading: boolean) => void;
 
     parcels: Parcel[];
@@ -48,14 +74,29 @@ export const useStore = create<Store>((set) => ({
         set({ nodes, relationships });
     },
 
-    highlight_color: null,
-    updateHighlightColor: (highlight_color: string | null) => {
-        set({ highlight_color });
+    highlights: null,
+    updateHighlights: (
+        highlights: {
+            relationship: Relationship[];
+            nodes: Set<number>;
+            agent_id: number;
+        } | null,
+    ) => {
+        set({ highlights });
     },
 
     isLoading: false,
     routes: null,
-    updateRoutes: (routes: Map<number, number[]> | null) => {
+    updateRoutes: (
+        routes:
+            | {
+                  agent: Agent;
+                  route: (Parcel | null)[];
+                  color: string;
+                  path: number[];
+              }[]
+            | null,
+    ) => {
         set({ routes });
     },
     updateIsLoading: (isLoading: boolean) => {
@@ -181,7 +222,10 @@ export const simulate = async () => {
     return axiosInstance
         .get("/simulate")
         .then((response) => {
-            console.log(response.data);
+            for (let i = 0; i < response.data.length; i++) {
+                response.data[i].color =
+                    "#" + Math.floor(Math.random() * 16777215).toString(16);
+            }
             useStore.getState().updateRoutes(response.data);
         })
         .catch((error) => {

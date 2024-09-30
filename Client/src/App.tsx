@@ -5,11 +5,14 @@ import {
 } from "@/components/ui/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEffect, useState } from "react";
-import { Canvas } from "@/Canvas";
+import { Canvas, SimulatorSidebar } from "@/Canvas";
 import * as api from "./lib/api";
+import { Progress } from "@/components/ui/progress";
 
 const App = () => {
     const [simulating, setSimulating] = useState(false);
+    const isLoading = api.useStore((state) => state.isLoading);
+    const [loading, setLoading] = useState(0);
     useEffect(() => {
         const handleNodeClick = (e: Event) => {
             console.log(e);
@@ -24,10 +27,28 @@ const App = () => {
     return (
         <ResizablePanelGroup
             direction="horizontal"
-            className="w-dvh flex h-dvh rounded-lg"
+            className="relative w-dvh flex h-dvh rounded-lg"
         >
+            {isLoading && (
+                <div
+                    className="absolute top-0 left-0 backdrop-blur-sm flex z-20 justify-center items-center w-full h-full"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                    }}
+                >
+                    <Progress
+                        className="w-3/4"
+                        value={!isLoading ? 100 : loading}
+                    />
+                </div>
+            )}
             <ResizablePanel defaultSize={75} className="h-dvh">
-                <Canvas simulating={simulating} setSimulating={setSimulating} />
+                <Canvas
+                    simulating={simulating}
+                    setSimulating={setSimulating}
+                    loading={loading}
+                    setLoading={setLoading}
+                />
             </ResizablePanel>
             <ResizableHandle withHandle />
             <>
@@ -37,7 +58,7 @@ const App = () => {
                     defaultSize={25}
                     className="h-dvh"
                 >
-                    {simulating ? <div></div> : <Sidebar />}
+                    {simulating ? <SimulatorSidebar /> : <Sidebar />}
                 </ResizablePanel>
             </>
         </ResizablePanelGroup>
