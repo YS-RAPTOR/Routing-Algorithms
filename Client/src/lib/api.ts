@@ -13,6 +13,29 @@ export type Agent = {
     max_capacity: number;
     max_dist: number;
 };
+
+export type Highlights = {
+    relationship: Relationship[];
+    nodes: Set<number>;
+    agent_id: number;
+};
+
+export type CalcResults = {
+    agent: Agent;
+    route: (Parcel | null)[];
+    color: string;
+    path: number[];
+    performance?: {
+        distance_travelled: number;
+        parcels_delivered: number;
+    };
+};
+
+export type ResultsSummary = {
+    total_distance: number;
+    total_parcels: number;
+};
+
 type Store = {
     nodes: Node[];
     relationships: Relationship[];
@@ -20,38 +43,12 @@ type Store = {
         nodes: Node[],
         relationships: Relationship[],
     ) => void;
-    highlights: {
-        relationship: Relationship[];
-        nodes: Set<number>;
-        agent_id: number;
-    } | null;
-    updateHighlights: (
-        highlights: {
-            relationship: Relationship[];
-            nodes: Set<number>;
-            agent_id: number;
-        } | null,
-    ) => void;
+    highlights: Highlights | null;
+    updateHighlights: (highlights: Highlights | null) => void;
 
     isLoading: boolean;
-    routes:
-        | {
-              agent: Agent;
-              route: (Parcel | null)[];
-              color: string;
-              path: number[];
-          }[]
-        | null;
-    updateRoutes: (
-        routes:
-            | {
-                  agent: Agent;
-                  route: (Parcel | null)[];
-                  color: string;
-                  path: number[];
-              }[]
-            | null,
-    ) => void;
+    calcResults: CalcResults[] | null;
+    updateCalcResults: (calcResults: CalcResults[] | null) => void;
     updateIsLoading: (isLoading: boolean) => void;
 
     parcels: Parcel[];
@@ -62,6 +59,9 @@ type Store = {
 
     isPicking: boolean;
     updateIsPicking: (isPicking: boolean) => void;
+
+    summary: ResultsSummary | null;
+    updateSummary: (summary: ResultsSummary | null) => void;
 };
 
 export const useStore = create<Store>((set) => ({
@@ -75,29 +75,14 @@ export const useStore = create<Store>((set) => ({
     },
 
     highlights: null,
-    updateHighlights: (
-        highlights: {
-            relationship: Relationship[];
-            nodes: Set<number>;
-            agent_id: number;
-        } | null,
-    ) => {
+    updateHighlights: (highlights: Highlights | null) => {
         set({ highlights });
     },
 
     isLoading: false,
-    routes: null,
-    updateRoutes: (
-        routes:
-            | {
-                  agent: Agent;
-                  route: (Parcel | null)[];
-                  color: string;
-                  path: number[];
-              }[]
-            | null,
-    ) => {
-        set({ routes });
+    calcResults: null,
+    updateCalcResults: (calcResults: CalcResults[] | null) => {
+        set({ calcResults });
     },
     updateIsLoading: (isLoading: boolean) => {
         set({ isLoading });
@@ -116,6 +101,11 @@ export const useStore = create<Store>((set) => ({
     isPicking: false,
     updateIsPicking: (isPicking: boolean) => {
         set({ isPicking });
+    },
+
+    summary: null,
+    updateSummary: (summary: ResultsSummary | null) => {
+        set({ summary });
     },
 }));
 
@@ -219,14 +209,14 @@ export const createMap = async (map_options: {
 };
 
 export const simulate = async () => {
+    useStore.getState().updateCalcResults(null);
+    useStore.getState().updateSummary(null);
+
     return axiosInstance
         .get("/simulate")
         .then((response) => {
-            for (let i = 0; i < response.data.length; i++) {
-                response.data[i].color =
-                    "#" + Math.floor(Math.random() * 16777215).toString(16);
-            }
-            useStore.getState().updateRoutes(response.data);
+            useStore.getState().updateCalcResults(response.data["per_agent"]);
+            useStore.getState().updateSummary(response.data["summary"]);
         })
         .catch((error) => {
             console.error(error);

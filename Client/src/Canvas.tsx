@@ -32,7 +32,7 @@ import {
     PiPlayDuotone,
     PiStopDuotone,
 } from "react-icons/pi";
-import { Color } from "three";
+import { Separator } from "./components/ui/separator";
 
 const ButtonGroup = (props: {
     simulating: boolean;
@@ -44,7 +44,7 @@ const ButtonGroup = (props: {
     const isPicking = useStore((state) => state.isPicking);
     const updateIsPicking = useStore((state) => state.updateIsPicking);
     const updateIsLoading = useStore((state) => state.updateIsLoading);
-    const updateRoutes = useStore((state) => state.updateRoutes);
+    const updateCalcResults = useStore((state) => state.updateCalcResults);
 
     return (
         <div className="flex fill-slate-900 flex-col gap-3 absolute right-3 bottom-3 z-10">
@@ -95,8 +95,6 @@ const ButtonGroup = (props: {
                                 percent = 0;
                                 props.setLoading(0);
                             });
-                    } else {
-                        updateRoutes(null);
                     }
                     props.setSimulating(!props.simulating);
                 }}
@@ -117,21 +115,34 @@ const ButtonGroup = (props: {
 };
 
 export const SimulatorSidebar = () => {
-    const routes = useStore((state) => state.routes);
-    if (routes === null) {
+    const calcResults = useStore((state) => state.calcResults);
+    const summary = useStore((state) => state.summary);
+    if (calcResults === null || summary === null) {
         return <div></div>;
     }
 
     return (
         <ScrollArea className="w-full h-full">
             <div className="h-full w-full flex gap-2 flex-col p-2 ">
-                {routes.map((data) => (
+                <h1 className="font-black text-lg">Summary:</h1>
+                <div className="text-sm text-muted-foreground -mt-2">
+                    <p>
+                        Total Distance Travelled:{" "}
+                        {summary.total_distance.toFixed(0)}
+                    </p>
+                    <p>Total Parcels Delivered: {summary.total_parcels}</p>
+                </div>
+
+                <Separator></Separator>
+                <h1 className="font-black text-lg">Calculated Routes:</h1>
+                {calcResults.map((res) => (
                     <AgentInfo
-                        key={data.agent.id}
-                        agent={data.agent}
-                        color={data.color}
-                        route={data.route}
-                        path={data.path}
+                        key={res.agent.id}
+                        agent={res.agent}
+                        color={res.color}
+                        route={res.route}
+                        path={res.path}
+                        performance={res.performance}
                     />
                 ))}
             </div>
@@ -148,11 +159,11 @@ const WarehouseInfo = () => {
         }
 
         const agent_id = highlights?.agent_id;
-        const routes = useStore.getState().routes;
-        if (routes === null) {
+        const calcResults = useStore.getState().calcResults;
+        if (calcResults === null) {
             return [];
         }
-        const current_highlight = routes.find(
+        const current_highlight = calcResults.find(
             (route) => route.agent.id === agent_id,
         );
 
@@ -191,12 +202,7 @@ const WarehouseInfo = () => {
     );
 };
 
-const AgentInfo = (props: {
-    agent: api.Agent;
-    route: (api.Parcel | null)[];
-    color: string;
-    path: number[];
-}) => {
+const AgentInfo = (props: api.CalcResults) => {
     const updateHighlight = useStore((state) => state.updateHighlights);
 
     const nodesToHighlight = new Set<number>(props.path);
@@ -226,7 +232,7 @@ const AgentInfo = (props: {
             }
             onPointerLeave={() => updateHighlight(null)}
         >
-            <CardHeader className="p-3">
+            <CardHeader className="p-3 pb-0 ">
                 <CardTitle>Agent {props.agent.id}</CardTitle>
                 <CardDescription>
                     <p>Max Capacity: {props.agent.max_capacity}</p>
@@ -234,6 +240,27 @@ const AgentInfo = (props: {
                 </CardDescription>
             </CardHeader>
             <CardContent>
+                <div>
+                    {props.performance ? (
+                        <>
+                            <p className="text-sm ">
+                                Distance Travelled:{" "}
+                                {props.performance.distance_travelled.toFixed(
+                                    0,
+                                )}
+                                m
+                            </p>
+                            <p className="text-sm ">
+                                Parcels Delivered:{" "}
+                                {props.performance.parcels_delivered}
+                            </p>
+                        </>
+                    ) : (
+                        <p className="text-red-500 font-bold">
+                            Agent is not valid
+                        </p>
+                    )}
+                </div>
                 <Collapsible>
                     <CollapsibleTrigger className="font-bold w-full justify-between items-center flex">
                         <span>Routes</span>
@@ -291,7 +318,7 @@ export const Canvas = (props: {
     const relationships = useStore((state) => state.relationships);
     const camControls = useRef<CameraControls>(null!);
     const enabled = nodes.length > 0 && relationships.length > 0;
-    const route = useStore((state) => state.routes);
+    const calcResults = useStore((state) => state.calcResults);
 
     return (
         <div className="w-full h-full relative">
@@ -366,12 +393,12 @@ export const Canvas = (props: {
                         num_of_relationships={relationships.length}
                     />
                 ))}
-                {(route ?? []).map((data) => (
+                {(calcResults ?? []).map((res) => (
                     <RouteView
-                        key={data.agent.id}
-                        route={data.route}
+                        key={res.agent.id}
+                        route={res.route}
                         nodes={nodes}
-                        agent_id={data.agent.id}
+                        agent_id={res.agent.id}
                     />
                 ))}
             </FiberCanvas>
@@ -422,31 +449,29 @@ const RouteView = (props: {
     return (
         <>
             {locations.map(([location, parcels], i) => (
-                <>
-                    <Text
-                        key={location}
-                        ref={refs[i]}
-                        position={[
-                            props.nodes[location].x,
-                            props.nodes[location].y + 10,
-                            5 - (10000 + props.nodes[location].x) / 10000,
-                        ]}
-                        anchorX={"center"}
-                        anchorY={"middle"}
-                        textAlign={"center"}
-                        fontWeight={"bold"}
-                        color={"#ffffff"}
-                        fontSize={10}
-                        outlineWidth={5}
-                        outlineColor={props.nodes[location].color}
-                        outlineOpacity={1}
-                        outlineBlur={1}
-                        strokeColor={"#000000"}
-                        strokeWidth={0.1}
-                    >
-                        {parcels}
-                    </Text>
-                </>
+                <Text
+                    key={location}
+                    ref={refs[i]}
+                    position={[
+                        props.nodes[location].x,
+                        props.nodes[location].y + 10,
+                        5 - (10000 + props.nodes[location].x) / 10000,
+                    ]}
+                    anchorX={"center"}
+                    anchorY={"middle"}
+                    textAlign={"center"}
+                    fontWeight={"bold"}
+                    color={"#ffffff"}
+                    fontSize={10}
+                    outlineWidth={5}
+                    outlineColor={props.nodes[location].color}
+                    outlineOpacity={1}
+                    outlineBlur={1}
+                    strokeColor={"#000000"}
+                    strokeWidth={0.1}
+                >
+                    {parcels}
+                </Text>
             ))}
             ;
         </>

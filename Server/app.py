@@ -6,6 +6,8 @@ from common import DeliveryAgentInfo, Parcel, Route, create_agents, create_parce
 from node import Node, NodeOptions
 import logging
 import uvicorn
+from Simulator import Simulator
+import test_algos.GA
 
 user_parcels: List[Parcel] = []
 user_agents: List[DeliveryAgentInfo] = []
@@ -123,8 +125,7 @@ def update_agents(agents: List[DeliveryAgentInfo]):
 def get_map():
     global no_of_nodes, root_node
     if root_node is None or no_of_nodes is None:
-        raise HTTPException(400, detail="Initialize Map First")
-
+        return {"no_of_nodes": 0, "nodes": None}
     return {"no_of_nodes": no_of_nodes, "nodes": serialize(root_node)}
 
 
@@ -213,7 +214,6 @@ def get_path(ro: List[Parcel | None]):
 @app.get("/simulate")
 def simulate():
     logger.info("Simulating")
-    import test_algos.GA
 
     global user_agents, user_parcels, root_node
 
@@ -229,10 +229,31 @@ def simulate():
             user_parcels,
             user_agents,
         )
-        return [
-            {"agent": a, "route": sanitize_route(r.route), "path": get_path(r.route)}
-            for a, r in route.items()
-        ]
+        simulator = Simulator(root_node, user_parcels)
+        allocations = [{a: r.get_allocation() for a, r in route.items()}]
+        _, total_parcels, total_distance = simulator.simulate(allocations)[0]
+        agent_results = simulator.get_agent_results(0)
+
+        return {
+            "summary": {
+                "total_distance": total_distance,
+                "total_parcels": total_parcels,
+            },
+            "per_agent": [
+                {
+                    "agent": a,
+                    "route": sanitize_route(r.route),
+                    "path": get_path(r.route),
+                    "performance": {
+                        "parcels_delivered": ar[1],
+                        "distance_travelled": ar[2],
+                    }
+                    if ar[0]
+                    else None,
+                }
+                for (a, r), ar in zip(route.items(), agent_results)
+            ],
+        }
 
 
 if __name__ == "__main__":
