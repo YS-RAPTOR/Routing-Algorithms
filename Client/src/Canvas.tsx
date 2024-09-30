@@ -429,7 +429,7 @@ const RouteView = (props: {
                         position={[
                             props.nodes[location].x,
                             props.nodes[location].y + 10,
-                            5,
+                            5 - (10000 + props.nodes[location].x) / 10000,
                         ]}
                         anchorX={"center"}
                         anchorY={"middle"}
