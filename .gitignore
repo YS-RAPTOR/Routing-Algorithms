@@ -5,5 +5,4 @@ pyrightconfig.json
 .vscode
 *.prof
 profiling
-lib
 .zig-cache

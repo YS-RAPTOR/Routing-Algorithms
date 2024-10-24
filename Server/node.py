@@ -1,5 +1,5 @@
 from typing import Set, Tuple, List
-from typing_extensions import Self
+from typing_extensions import Dict, Self
 from dataclasses import dataclass
 import numpy as np
 
@@ -204,6 +204,18 @@ class Node:
                 continue
             neighbour.get_all_nodes(visited)  # type: ignore
         return visited
+
+    def deepcopy(self, visited: Dict[int, Self]) -> Self:
+        if self.id in visited:
+            return visited[self.id]
+
+        copy = Node(self.x, self.y, self.color, self.id)
+        visited[self.id] = copy  # type: ignore
+
+        for neighbour in self.neighbours:
+            copy.neighbours.append(neighbour.deepcopy(visited))  # type: ignore
+
+        return copy  # type: ignore
 
     def find_immediate_from_id(self, id: int) -> Self | None:
         # Find the immediate child or parent node that has the given id

@@ -7,8 +7,6 @@ SPEED = 1
 
 """
 
-
-
 NOTE: DO NOT USE THIS FUNCTION
 import Simulator from Simulator
 Much Faster and Efficient
@@ -18,37 +16,6 @@ from Simulator import Simulator
 ```
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 """
 
 
@@ -56,7 +23,7 @@ from Simulator import Simulator
 # The route is list of nodes starting from the end node to the start node
 # The end node is given as an Id
 # TODO: A* algorithm can be implemented for a more efficient route finding
-def get_route(start: Node, end: Id) -> List[Id]:
+def get_route(start: Node, end: Id):
     # Create a queue for BFS and enqueue the starting node
     queue = deque([start])
     # Keep track of visited nodes and predecessors
@@ -74,7 +41,7 @@ def get_route(start: Node, end: Id) -> List[Id]:
             while curr is not None:
                 path.append(curr)
                 curr = predecessor[curr]
-            return path
+            return path, current
 
         # Explore neighbors
         for neighbor in current.neighbours:
@@ -201,7 +168,7 @@ class Agent:
         self.current_parcel_to_deliver = self.locations_to_visit.pop()
 
         # Get the route from the current location to the current parcel to deliver
-        self.route = get_route(self.current_location, self.current_parcel_to_deliver)
+        self.route = get_route(self.current_location, self.current_parcel_to_deliver)[0]
 
         # If the route does not start from the current location, the route is invalid
         if self.route[-1] != self.current_location.id:

@@ -5,7 +5,7 @@ from typing import List, Tuple, Dict
 from common import DeliveryAgentInfo, Parcel, Id
 from node import Node
 
-ran = False
+__ran = False
 
 
 class Simulator:
@@ -19,7 +19,7 @@ class Simulator:
     ) -> List[Tuple[bool, int, float]]: ...
 
 
-def main():
+def __main():
     __folder = os.path.dirname(__file__)
     __library = os.path.join(__folder, "lib")
 
@@ -33,7 +33,7 @@ def main():
                 "Ziglang is required to build the simulator library. Please install ziglang"
             )
 
-        subprocess.run(
+        result = subprocess.run(
             [
                 sys.executable,
                 "-m",
@@ -44,7 +44,10 @@ def main():
                 "--release=fast",
             ],
             cwd=__folder,
+            capture_output=True,
         )
+        if result.stderr:
+            raise ImportError("Zig Build Exception\n" + result.stderr.decode("utf-8"))
 
     sys.path.append(__library)
     import libSim
@@ -54,6 +57,6 @@ def main():
     sys.path.pop()
 
 
-if not ran:
-    main()
-    ran = True
+if not __ran:
+    __main()
+    __ran = True

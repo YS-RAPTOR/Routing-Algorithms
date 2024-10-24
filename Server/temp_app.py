@@ -1,11 +1,15 @@
 from typing import Set, Tuple
+from typing_extensions import List
 import numpy as np
 import pygame
 
+import test_algos.GA as GA
+
+from common import DeliveryAgentInfo, create_agents, create_parcels
 from node import Node, NodeOptions
 
 
-class DrawNode:
+class Renderer:
     def __init__(
         self,
         node: Node,
@@ -26,10 +30,9 @@ class DrawNode:
         y_scale = height / (self.node.bbox[3] - self.node.bbox[1])  # type: ignore
         return min(x_scale, y_scale)
 
-    def __draw(
+    def __draw_map(
         self,
         node: Node,
-        surface: pygame.Surface,
         offset: Tuple[int, int],
         zoom: float,
         visited: Set[Node],
@@ -37,7 +40,7 @@ class DrawNode:
         visited.add(node)
         for neighbour in node.neighbours:
             pygame.draw.aaline(
-                surface,
+                self.surface,
                 neighbour.color,
                 (int(node.x * zoom + offset[0]), int(node.y * zoom + offset[1])),
                 (
@@ -49,13 +52,20 @@ class DrawNode:
             if neighbour in visited:
                 continue
 
-            self.__draw(neighbour, surface, offset, zoom, visited)
+            self.__draw_map(neighbour, offset, zoom, visited)
         pygame.draw.circle(
-            surface,
+            self.surface,
             node.color,
             (int(node.x * zoom + offset[0]), int(node.y * zoom + offset[1])),
             max(self.node_radius, int(zoom * self.node_radius)),
         )
+
+    def __draw_agents(
+        self,
+        offset: Tuple[int, int],
+        zoom: float,
+    ):
+        pass
 
     def draw(self, display_region: Tuple[int, int]):
         zoom = self.zoom_to_fit(display_region) if self.zoom is None else self.zoom
@@ -63,12 +73,16 @@ class DrawNode:
 
         self.surface = pygame.Surface(display_region)
         self.surface.fill((255, 255, 255))
-        self.__draw(
+        self.__draw_map(
             self.node,
-            self.surface,
             (int(self.offset[0]), int(self.offset[1])),
             zoom,
             set(),
+        )
+
+        self.__draw_agents(
+            (int(self.offset[0]), int(self.offset[1])),
+            zoom,
         )
 
 
@@ -90,10 +104,16 @@ class App:
 
         # NOTE: Creates node
         root = Node(0, 0, (0, 0, 0), 0)
-        print(f" No of Nodes Created: {root.create(NodeOptions())}")
+        no_of_nodes = root.create(NodeOptions())
+        print(f" No of Nodes Created: {no_of_nodes}")
+
+        parcels = create_parcels(no_of_nodes)
+        agents = create_agents()
+
+        routes = GA.model(root, parcels, agents, False)
 
         # NOTE: App Initialization
-        self.draw_node = DrawNode(
+        self.renderer = Renderer(
             root,
             tuple(np.array(self.window_size) // 2),
             None,
@@ -132,8 +152,8 @@ class App:
                     # If the key pressed is R, then the node will be reset to fit the window and
                     # offset will be set to the center
                     if event.key == pygame.K_r:
-                        self.draw_node.zoom = None
-                        self.draw_node.offset = tuple(np.array(self.window_size) // 2)
+                        self.renderer.zoom = None
+                        self.renderer.offset = tuple(np.array(self.window_size) // 2)
 
                 # Handles the event when the window is resized
                 if event.type == pygame.VIDEORESIZE:
@@ -142,27 +162,25 @@ class App:
                 # Handles the event when the mouse wheel is scrolled
                 if event.type == pygame.MOUSEWHEEL:
                     # If the zoom is not set, then it will be set to fit the window
-                    if self.draw_node.zoom is None:
-                        self.draw_node.zoom = self.draw_node.zoom_to_fit(
-                            self.window_size
-                        )
+                    if self.renderer.zoom is None:
+                        self.renderer.zoom = self.renderer.zoom_to_fit(self.window_size)
 
                     # Stores the old zoom value to calculate offset
-                    old_zoom = self.draw_node.zoom
+                    old_zoom = self.renderer.zoom
 
                     # Zoom in or out based on the scroll direction and the scroll speed
                     if event.y > 0:
-                        self.draw_node.zoom *= self.scroll_speed
+                        self.renderer.zoom *= self.scroll_speed
                     elif event.y < 0:
-                        self.draw_node.zoom /= self.scroll_speed
+                        self.renderer.zoom /= self.scroll_speed
 
                     # Clamp the zoom value to a certain range
-                    zoom = self.draw_node.zoom
+                    zoom = self.renderer.zoom
 
                     # Calculates the offset based on the zoom value and the mouse position
                     mouse_pos = np.array(pygame.mouse.get_pos())
-                    offset = np.array(self.draw_node.offset)
-                    self.draw_node.offset = tuple(
+                    offset = np.array(self.renderer.offset)
+                    self.renderer.offset = tuple(
                         mouse_pos - (mouse_pos - offset) * (zoom / old_zoom)
                     )
                 # When the left mouse button is pressed, dragging starts
@@ -171,7 +189,7 @@ class App:
                         if not self.is_dragging:
                             # Stores the initial mouse position and the offset
                             self.initial_mouse_pos = np.array(pygame.mouse.get_pos())
-                            self.initial_offset = self.draw_node.offset
+                            self.initial_offset = self.renderer.offset
                             self.is_dragging = True
 
                 # When the left mouse button is released, dragging stops
@@ -182,16 +200,16 @@ class App:
             # Moves the node based on whether the ueser is currently dragging
             if self.is_dragging:
                 self.mouse_pos = np.array(pygame.mouse.get_pos())
-                self.draw_node.offset = tuple(
+                self.renderer.offset = tuple(
                     self.initial_offset + self.mouse_pos - self.initial_mouse_pos
                 )
 
             # Updates the node
-            self.draw_node.draw(self.window_size)
+            self.renderer.draw(self.window_size)
 
             # Draw the updated node
             self.screen.fill((255, 255, 255))
-            self.screen.blit(self.draw_node.surface, (0, 0))
+            self.screen.blit(self.renderer.surface, (0, 0))
             pygame.display.flip()
 
             # Limits the frame rate to the specified fps

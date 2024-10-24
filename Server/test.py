@@ -3,10 +3,11 @@ import numpy as np
 import importlib
 import pkgutil
 
-from common import DeliveryAgentInfo, Parcel, Route
+from common import DeliveryAgentInfo, Route, create_agents, create_parcels
 from node import Node, NodeOptions
 from Simulator import Simulator
 import test_algos
+
 
 import cProfile
 import pstats
@@ -15,39 +16,6 @@ import time
 DEBUG = True
 CHECK_PERFORMANCE = False
 
-
-def create_parcels(
-    no_of_nodes: int,
-    min_parcels: int = 20,
-    max_parcels: int = 50,
-):
-    # Randomly generate number of parcels
-    no_of_parcels = np.random.randint(min_parcels, max_parcels)
-
-    # Randomly assign parcels to nodes
-    return [Parcel(i, np.random.randint(1, no_of_nodes)) for i in range(no_of_parcels)]
-
-
-def create_agents(
-    min_agents: int = 3,
-    max_agents: int = 5,
-    min_capacity: int = 5,
-    max_capacity: int = 10,
-    min_dist: float = 500,
-    max_dist: float = 5000,
-):
-    # Randomly generate number of agents
-    no_agents = np.random.randint(min_agents, max_agents)
-
-    # Randomly assign capacity and max distance to agents
-    return [
-        DeliveryAgentInfo(
-            i,
-            np.random.randint(min_capacity, max_capacity),
-            np.random.uniform(min_dist, max_dist),
-        )
-        for i in range(no_agents)
-    ]
 
 
 def print_info(agent: DeliveryAgentInfo, allocation, results):
