@@ -6,7 +6,7 @@ import pkgutil
 from common import DeliveryAgentInfo, Route, create_agents, create_parcels
 from node import Node, NodeOptions
 from Simulator import Simulator
-import test_algos
+import Algos
 
 
 import cProfile
@@ -15,7 +15,6 @@ import time
 
 DEBUG = True
 CHECK_PERFORMANCE = False
-
 
 
 def print_info(agent: DeliveryAgentInfo, allocation, results):
@@ -77,7 +76,7 @@ if __name__ == "__main__":
     print(f" Nodes: {no_of_nodes}")
 
     # Run all test algorithms in the folder test_algos
-    for module_info in pkgutil.iter_modules(test_algos.__path__):  # type: ignore
+    for module_info in pkgutil.iter_modules(Algos.__path__):  # type: ignore
         submodule = importlib.import_module(f"test_algos.{module_info.name}")
 
         # Check if the module has a model function

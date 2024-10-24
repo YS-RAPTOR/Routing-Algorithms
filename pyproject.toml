@@ -1,0 +1,15 @@
+[project]
+name = "routing-algorithms"
+version = "0.1.0"
+description = "Shows Visualiazations of different routing algorithms"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.115.3",
+    "numpy>=2.1.2",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "ziglang>=0.13.0",
+]

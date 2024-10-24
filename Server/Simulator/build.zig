@@ -15,7 +15,7 @@ pub fn build(b: *std.Build) void {
 
     const lib = b.addSharedLibrary(.{
         .name = "Sim",
-        .root_source_file = b.path("simulator_python.zig"),
+        .root_source_file = b.path("src/simulator_python.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -24,7 +24,7 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(lib);
 
     const lib_unit_tests = b.addTest(.{
-        .root_source_file = b.path("simulator_python.zig"),
+        .root_source_file = b.path("src/simulator_python.zig"),
         .target = target,
         .optimize = optimize,
     });

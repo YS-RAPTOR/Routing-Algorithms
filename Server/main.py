@@ -7,7 +7,7 @@ from node import Node, NodeOptions
 import logging
 import uvicorn
 from Simulator import Simulator
-import test_algos.GA
+import Algos.GA
 
 user_parcels: List[Parcel] = []
 user_agents: List[DeliveryAgentInfo] = []
